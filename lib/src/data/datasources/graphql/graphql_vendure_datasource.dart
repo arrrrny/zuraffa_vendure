@@ -174,6 +174,68 @@ class GraphQLVendureDataSource implements VendureDataSource {
     );
   }
 
+  @override
+  Future<List<T>> queryList<T>(
+    String document, {
+    required Map<String, dynamic> variables,
+    required Map<String, String> headers,
+    T Function(Map<String, dynamic> json)? fromJson,
+    required String expectedDataType,
+  }) async {
+    final data = await _execute<dynamic>(
+      document,
+      variables: variables,
+      headers: headers,
+      fromJson: (json) => json,
+      expectedDataType: expectedDataType,
+      isMutation: false,
+    );
+    if (data is! List) {
+      throw VendureDataSourceException(
+        'Expected a JSON list for $expectedDataType, got ${data.runtimeType}',
+      );
+    }
+    final decode = fromJson ?? (dynamic e) => e as T;
+    return data.map<T>((e) => decode(e as Map<String, dynamic>)).toList();
+  }
+
+  @override
+  Future<VendureResponse<T>> mutateWithHeaders<T>(
+    String document, {
+    required Map<String, dynamic> variables,
+    required Map<String, String> headers,
+    required T Function(Map<String, dynamic> json) fromJson,
+    required String expectedDataType,
+  }) async {
+    // The auth seam needs the HTTP response headers (the Vendure session
+    // token rides the vendure-auth-token header), so this path keeps the
+    // raw QueryResult — _execute's typed extraction happens on its data.
+    final client = _graphqlClient;
+    final options = MutationOptions(
+      document: gql(document),
+      variables: variables,
+      context: const Context().withEntry(
+        HttpLinkHeaders(headers: headers),
+      ),
+      fetchPolicy: FetchPolicy.noCache,
+    );
+    final result = await client.mutate(options);
+    final data = _handleErrors(result, expectedDataType);
+    final responseHeaders = <String, String>{};
+    final linkContext = result.context.entry<HttpLinkResponseContext>();
+    if (linkContext != null && linkContext.headers != null) {
+      responseHeaders.addAll(
+        linkContext.headers!.map((k, v) => MapEntry(k, v.toString())),
+      );
+    }
+    if (data is! Map<String, dynamic>) {
+      throw VendureDataSourceException(
+        'Expected a JSON object for $expectedDataType, got ${data.runtimeType}',
+      );
+    }
+    return VendureResponse<T>(fromJson(data), responseHeaders);
+  }
+
   Future<T> _execute<T>(
     String document, {
     required Map<String, dynamic> variables,

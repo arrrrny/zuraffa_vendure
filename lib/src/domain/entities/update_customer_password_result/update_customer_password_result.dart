@@ -1,0 +1,88 @@
+import 'package:json_annotation/json_annotation.dart';
+import '../enums/error_code.dart';
+
+part 'update_customer_password_result.g.dart';
+
+sealed class UpdateCustomerPasswordResult {
+  const UpdateCustomerPasswordResult._();
+
+  factory UpdateCustomerPasswordResult.fromJson(Map<String, dynamic> json) {
+    final runtimeType = json['runtimeType'] as String?;
+    switch (runtimeType) {
+      case 'invalidCredentialsError':
+        return InvalidCredentialsError.fromJson(json);
+      case 'nativeAuthStrategyError':
+        return NativeAuthStrategyError.fromJson(json);
+      case 'passwordValidationError':
+        return PasswordValidationError.fromJson(json);
+      case 'success':
+        return Success.fromJson(json);
+      default:
+        throw ArgumentError('Unknown UpdateCustomerPasswordResult variant: $runtimeType');
+    }
+  }
+
+  Map<String, dynamic> toJson();
+}
+
+@JsonSerializable(explicitToJson: true)
+class InvalidCredentialsError extends UpdateCustomerPasswordResult {
+  String? authenticationError;
+  ErrorCode? errorCode;
+  String? message;
+
+  InvalidCredentialsError({
+    this.authenticationError,
+    this.errorCode,
+    this.message,
+  }) : super._();
+
+  factory InvalidCredentialsError.fromJson(Map<String, dynamic> json) => _$InvalidCredentialsErrorFromJson(json);
+  @override
+  Map<String, dynamic> toJson() => _$InvalidCredentialsErrorToJson(this);
+}
+
+@JsonSerializable(explicitToJson: true)
+class NativeAuthStrategyError extends UpdateCustomerPasswordResult {
+  ErrorCode? errorCode;
+  String? message;
+
+  NativeAuthStrategyError({
+    this.errorCode,
+    this.message,
+  }) : super._();
+
+  factory NativeAuthStrategyError.fromJson(Map<String, dynamic> json) => _$NativeAuthStrategyErrorFromJson(json);
+  @override
+  Map<String, dynamic> toJson() => _$NativeAuthStrategyErrorToJson(this);
+}
+
+@JsonSerializable(explicitToJson: true)
+class PasswordValidationError extends UpdateCustomerPasswordResult {
+  ErrorCode? errorCode;
+  String? message;
+  String? validationErrorMessage;
+
+  PasswordValidationError({
+    this.errorCode,
+    this.message,
+    this.validationErrorMessage,
+  }) : super._();
+
+  factory PasswordValidationError.fromJson(Map<String, dynamic> json) => _$PasswordValidationErrorFromJson(json);
+  @override
+  Map<String, dynamic> toJson() => _$PasswordValidationErrorToJson(this);
+}
+
+@JsonSerializable(explicitToJson: true)
+class Success extends UpdateCustomerPasswordResult {
+  bool? success;
+
+  Success({
+    this.success,
+  }) : super._();
+
+  factory Success.fromJson(Map<String, dynamic> json) => _$SuccessFromJson(json);
+  @override
+  Map<String, dynamic> toJson() => _$SuccessToJson(this);
+}

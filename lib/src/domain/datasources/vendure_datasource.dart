@@ -32,6 +32,28 @@ abstract class VendureDataSource {
     required T Function(Map<String, dynamic> json) fromJson,
     required String expectedDataType,
   });
+
+  /// Executes a query whose expected data type is a LIST (the Vendure
+  /// list envelope: `{data: {<expectedDataType>: […]}}`), decoding each
+  /// element with [fromJson].
+  Future<List<T>> queryList<T>(
+    String document, {
+    required Map<String, dynamic> variables,
+    required Map<String, String> headers,
+    T Function(Map<String, dynamic> json)? fromJson,
+    required String expectedDataType,
+  });
+
+  /// Executes a mutation and returns the decoded data TOGETHER with the
+  /// HTTP response headers — the auth seam needs this: the Vendure session
+  /// token rides the `vendure-auth-token` response header, not the body.
+  Future<VendureResponse<T>> mutateWithHeaders<T>(
+    String document, {
+    required Map<String, dynamic> variables,
+    required Map<String, String> headers,
+    required T Function(Map<String, dynamic> json) fromJson,
+    required String expectedDataType,
+  });
 }
 
 /// The port's single error type: everything the transport can produce —
@@ -46,4 +68,16 @@ class VendureDataSourceException implements Exception {
 
   @override
   String toString() => 'VendureDataSourceException: $message';
+}
+
+/// A mutation result that carries the HTTP response headers alongside the
+/// decoded data — the Vendure session token rides a response header
+/// (`vendure-auth-token`), not the body, so the auth repository needs the
+/// headers to capture it (ported from the source SDK's
+/// `AuthBaseOperations.extractResponseHeaders`).
+class VendureResponse<T> {
+  const VendureResponse(this.data, this.headers);
+
+  final T data;
+  final Map<String, String> headers;
 }

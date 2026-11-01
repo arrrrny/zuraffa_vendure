@@ -102,4 +102,55 @@ class InMemoryVendureDataSource implements VendureDataSource {
     final payload = script[expectedDataType] ?? <String, dynamic>{};
     return fromJson(payload);
   }
+
+  @override
+  Future<List<T>> queryList<T>(
+    String document, {
+    required Map<String, dynamic> variables,
+    required Map<String, String> headers,
+    T Function(Map<String, dynamic> json)? fromJson,
+    required String expectedDataType,
+  }) async {
+    requests.add(VendureRequestRecord(
+      document: document,
+      variables: variables,
+      headers: headers,
+      isMutation: false,
+      expectedDataType: expectedDataType,
+    ));
+    final scripted = error;
+    if (scripted != null) {
+      throw scripted;
+    }
+    final payload = script[expectedDataType];
+    if (payload == null) {
+      return <T>[];
+    }
+    final list = payload['items'] as List<dynamic>? ?? <dynamic>[];
+    final decode = fromJson ?? (dynamic e) => e as T;
+    return list.map<T>((e) => decode(e as Map<String, dynamic>)).toList();
+  }
+
+  @override
+  Future<VendureResponse<T>> mutateWithHeaders<T>(
+    String document, {
+    required Map<String, dynamic> variables,
+    required Map<String, String> headers,
+    required T Function(Map<String, dynamic> json) fromJson,
+    required String expectedDataType,
+  }) async {
+    final data = await mutate<T>(
+      document,
+      variables: variables,
+      headers: headers,
+      fromJson: fromJson,
+      expectedDataType: expectedDataType,
+    );
+    return VendureResponse<T>(data, Map<String, String>.of(responseHeaders));
+  }
+
+  /// The headers every [mutateWithHeaders] response carries — the scripted
+  /// stand-in for the HTTP response headers (the auth token header). Tests
+  /// seed it: `adapter.responseHeaders['vendure-auth-token'] = token;`.
+  final Map<String, String> responseHeaders = {};
 }
