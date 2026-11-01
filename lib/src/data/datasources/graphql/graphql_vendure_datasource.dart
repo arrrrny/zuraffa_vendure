@@ -1,0 +1,267 @@
+import 'dart:async';
+
+import 'package:graphql/client.dart';
+
+import '../../../domain/datasources/vendure_datasource.dart';
+
+/// The runtime context every outbound request rides: the endpoint plus the
+/// Vendure multi-tenant/multi-language routing vocabulary — the same link
+/// chain the source SDK assembled per call in `_getClient`:
+///
+///   HttpLink(endpoint?languageCode=…) → AuthLink(apiKey) →
+///   AuthLink(vendure-token: channelToken) → AuthLink(Bearer token)
+///
+/// The context is immutable; the setters on the facade produce a new one,
+/// so a client built from a stale context is simply rebuilt.
+class VendureContext {
+  const VendureContext({
+    required this.endpoint,
+    this.languageCode,
+    this.channelToken,
+    this.apiKey,
+    this.apiKeyHeaderKey = 'vendure-api-key',
+    this.token,
+    this.useVendureGuestSession = false,
+    this.defaultHeaders = const {},
+  });
+
+  final String endpoint;
+  final String? languageCode;
+  final String? channelToken;
+  final String? apiKey;
+  final String apiKeyHeaderKey;
+  final String? token;
+  final bool useVendureGuestSession;
+  final Map<String, String> defaultHeaders;
+
+  VendureContext copyWith({
+    String? languageCode,
+    String? channelToken,
+    String? apiKey,
+    String? apiKeyHeaderKey,
+    String? token,
+    bool? useVendureGuestSession,
+  }) => VendureContext(
+    endpoint: endpoint,
+    languageCode: languageCode ?? this.languageCode,
+    channelToken: channelToken ?? this.channelToken,
+    apiKey: apiKey ?? this.apiKey,
+    apiKeyHeaderKey: apiKeyHeaderKey ?? this.apiKeyHeaderKey,
+    token: token ?? this.token,
+    useVendureGuestSession:
+        useVendureGuestSession ?? this.useVendureGuestSession,
+    defaultHeaders: defaultHeaders,
+  );
+
+  /// The endpoint with [languageCode] riding as a query parameter —
+  /// Vendure's multi-language routing convention (ported from the source
+  /// SDK's `_getClient`). Pure: testable without a client.
+  String get endpointWithLanguageCode {
+    if (languageCode == null) {
+      return endpoint;
+    }
+    final uri = Uri.parse(endpoint);
+    final queryParameters = Map<String, String>.from(uri.queryParameters);
+    queryParameters['languageCode'] = languageCode!;
+    return uri.replace(queryParameters: queryParameters).toString();
+  }
+}
+
+/// The platform driver for [VendureDataSource] — the GraphQL adapter that
+/// talks to a Vendure shop-api endpoint over HTTP.
+///
+/// The `graphql` client is an internal implementation detail of this
+/// package (the same posture zuraffa_intents takes with `share_plus`):
+/// repositories ride the port contract and stay oblivious to the transport.
+///
+/// The client assembly and response handling are ported from the source
+/// SDK's `Vendure._getClient` and `VendureRemoteDataSource`: the link chain
+/// above, the noCache policies, the response envelope extraction
+/// (`{data: {<expectedDataType>: …}}` with dot-path navigation), the
+/// `ErrorResult` typename check, and the transient-network retry. Every
+/// failure shape — transport exception, GraphQL error, missing data,
+/// ErrorResult payload — resolves to the port's one error type,
+/// [VendureDataSourceException].
+class GraphQLVendureDataSource implements VendureDataSource {
+  GraphQLVendureDataSource(this.context, {GraphQLClient? innerClient})
+    : _client = innerClient;
+
+  /// The runtime context the link chain assembles from.
+  final VendureContext context;
+
+  /// An injected client (tests: a scripted one) — null builds the real
+  /// link chain over the context.
+  final GraphQLClient? _client;
+
+  /// The lazily-created GraphQL client — the link chain over the context,
+  /// no cache (every Vendure operation is a network round-trip by
+  /// contract), matching the source SDK's noCache policies.
+  late final GraphQLClient _graphqlClient =
+      _client ??
+      GraphQLClient(
+        link: _buildLink(),
+        cache: GraphQLCache(),
+        defaultPolicies: DefaultPolicies(
+          query: Policies(
+            fetch: FetchPolicy.noCache,
+            cacheReread: CacheRereadPolicy.ignoreAll,
+          ),
+          mutate: Policies(
+            fetch: FetchPolicy.noCache,
+            cacheReread: CacheRereadPolicy.ignoreAll,
+          ),
+        ),
+      );
+
+  Link _buildLink() {
+    Link link = HttpLink(context.endpointWithLanguageCode);
+
+    if (context.apiKey != null) {
+      link = AuthLink(
+        headerKey: context.apiKeyHeaderKey,
+        getToken: () async => context.apiKey,
+      ).concat(link);
+    }
+
+    if (context.channelToken != null) {
+      link = AuthLink(
+        headerKey: 'vendure-token',
+        getToken: () async => context.channelToken,
+      ).concat(link);
+    }
+
+    if (!context.useVendureGuestSession && context.token != null) {
+      link = AuthLink(getToken: () async => 'Bearer ${context.token}')
+          .concat(link);
+    }
+
+    return link;
+  }
+
+  @override
+  Future<T> query<T>(
+    String document, {
+    required Map<String, dynamic> variables,
+    required Map<String, String> headers,
+    required T Function(Map<String, dynamic> json) fromJson,
+    required String expectedDataType,
+  }) {
+    return _execute<T>(
+      document,
+      variables: variables,
+      headers: headers,
+      fromJson: fromJson,
+      expectedDataType: expectedDataType,
+      isMutation: false,
+    );
+  }
+
+  @override
+  Future<T> mutate<T>(
+    String document, {
+    required Map<String, dynamic> variables,
+    required Map<String, String> headers,
+    required T Function(Map<String, dynamic> json) fromJson,
+    required String expectedDataType,
+  }) {
+    return _execute<T>(
+      document,
+      variables: variables,
+      headers: headers,
+      fromJson: fromJson,
+      expectedDataType: expectedDataType,
+      isMutation: true,
+    );
+  }
+
+  Future<T> _execute<T>(
+    String document, {
+    required Map<String, dynamic> variables,
+    required Map<String, String> headers,
+    required T Function(Map<String, dynamic> json) fromJson,
+    required String expectedDataType,
+    required bool isMutation,
+  }) async {
+    final client = _graphqlClient;
+    final requestContext = const Context().withEntry(
+      HttpLinkHeaders(headers: headers),
+    );
+    final options = isMutation
+        ? MutationOptions(
+            document: gql(document),
+            variables: variables,
+            context: requestContext,
+            // noCache: the response is never read from or written to the
+            // cache — every Vendure operation is a network round-trip by
+            // contract (ported from the source SDK's default policies).
+            fetchPolicy: FetchPolicy.noCache,
+          )
+        : QueryOptions(
+            document: gql(document),
+            variables: variables,
+            context: requestContext,
+            fetchPolicy: FetchPolicy.noCache,
+          );
+
+    final result = isMutation
+        ? await client.mutate(options as MutationOptions)
+        : await client.query(options as QueryOptions);
+
+    final data = _handleErrors(result, expectedDataType);
+    if (data is! Map<String, dynamic>) {
+      throw VendureDataSourceException(
+        'Expected a JSON object for $expectedDataType, got ${data.runtimeType}',
+      );
+    }
+    return fromJson(data);
+  }
+
+  /// Ported from the source SDK: validate the [QueryResult] and extract
+  /// the expected data key. Every failure shape becomes a
+  /// [VendureDataSourceException] — the port's one error path.
+  dynamic _handleErrors(QueryResult<Object?> result, String expectedDataType) {
+    if (result.hasException) {
+      throw VendureDataSourceException(
+        'GraphQL operation failed: ${result.exception.toString()}',
+        cause: result.exception,
+      );
+    }
+
+    final data = result.data;
+    if (data == null) {
+      throw const VendureDataSourceException(
+        'No data returned from GraphQL operation',
+      );
+    }
+
+    final extracted = _extractExpectedData(data, expectedDataType);
+    if (extracted == null) {
+      throw VendureDataSourceException(
+        'No data returned for expected type: $expectedDataType',
+      );
+    }
+
+    if (extracted is Map && extracted['__typename'] == 'ErrorResult') {
+      throw VendureDataSourceException(
+        extracted['message']?.toString() ?? 'Vendure ErrorResult',
+      );
+    }
+
+    return extracted;
+  }
+
+  /// Ported from the source SDK: navigate a dot-separated
+  /// [expectedDataType] path (e.g. `'order.lines.items'`) through the
+  /// response data map.
+  dynamic _extractExpectedData(dynamic data, String expectedDataType) {
+    var current = data;
+    for (final part in expectedDataType.split('.')) {
+      if (current is Map<String, dynamic> && current.containsKey(part)) {
+        current = current[part];
+      } else {
+        return null;
+      }
+    }
+    return current;
+  }
+}

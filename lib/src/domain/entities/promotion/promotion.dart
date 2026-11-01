@@ -1,0 +1,28 @@
+import 'package:zorphy_annotation/zorphy_annotation.dart';
+
+import '../configurable_operation/configurable_operation.dart';
+import '../promotion_translation/promotion_translation.dart';
+
+part 'promotion.zorphy.dart';
+part 'promotion.g.dart';
+
+/// Vendure `Promotion` entity — zorphy-generated from the schema
+/// manifest (spec 001, entity-manifest.json).
+@Zorphy(generateJson: true)
+abstract class $Promotion {
+  List<ConfigurableOperation> get actions;
+  List<ConfigurableOperation> get conditions;
+  String? get couponCode;
+  DateTime get createdAt;
+  Map<String, dynamic>? get customFields;
+  String get description;
+  bool get enabled;
+  DateTime? get endsAt;
+  String get id;
+  String get name;
+  int? get perCustomerUsageLimit;
+  DateTime? get startsAt;
+  List<PromotionTranslation> get translations;
+  DateTime get updatedAt;
+  int? get usageLimit;
+}

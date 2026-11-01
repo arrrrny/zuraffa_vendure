@@ -1,0 +1,23 @@
+import 'package:zorphy_annotation/zorphy_annotation.dart';
+
+part 'update_address_input.zorphy.dart';
+part 'update_address_input.g.dart';
+
+/// Vendure `UpdateAddressInput` entity — zorphy-generated from the schema
+/// manifest (spec 001, entity-manifest.json).
+@Zorphy(generateJson: true)
+abstract class $UpdateAddressInput {
+  String? get city;
+  String? get company;
+  String? get countryCode;
+  Map<String, dynamic>? get customFields;
+  bool? get defaultBillingAddress;
+  bool? get defaultShippingAddress;
+  String? get fullName;
+  String get id;
+  String? get phoneNumber;
+  String? get postalCode;
+  String? get province;
+  String? get streetLine1;
+  String? get streetLine2;
+}

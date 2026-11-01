@@ -1,0 +1,55 @@
+// Merged enum — superset of types/ and input_types/ variants
+import 'package:json_annotation/json_annotation.dart';
+
+enum HistoryEntryType {
+  @JsonValue('CUSTOMER_ADDED_TO_GROUP')
+  customerAddedToGroup,
+  @JsonValue('CUSTOMER_ADDRESS_CREATED')
+  customerAddressCreated,
+  @JsonValue('CUSTOMER_ADDRESS_DELETED')
+  customerAddressDeleted,
+  @JsonValue('CUSTOMER_ADDRESS_UPDATED')
+  customerAddressUpdated,
+  @JsonValue('CUSTOMER_DETAIL_UPDATED')
+  customerDetailUpdated,
+  @JsonValue('CUSTOMER_EMAIL_UPDATE_REQUESTED')
+  customerEmailUpdateRequested,
+  @JsonValue('CUSTOMER_EMAIL_UPDATE_VERIFIED')
+  customerEmailUpdateVerified,
+  @JsonValue('CUSTOMER_NOTE')
+  customerNote,
+  @JsonValue('CUSTOMER_PASSWORD_RESET_REQUESTED')
+  customerPasswordResetRequested,
+  @JsonValue('CUSTOMER_PASSWORD_RESET_VERIFIED')
+  customerPasswordResetVerified,
+  @JsonValue('CUSTOMER_PASSWORD_UPDATED')
+  customerPasswordUpdated,
+  @JsonValue('CUSTOMER_REGISTERED')
+  customerRegistered,
+  @JsonValue('CUSTOMER_REMOVED_FROM_GROUP')
+  customerRemovedFromGroup,
+  @JsonValue('CUSTOMER_VERIFIED')
+  customerVerified,
+  @JsonValue('ORDER_CANCELLATION')
+  orderCancellation,
+  @JsonValue('ORDER_COUPON_APPLIED')
+  orderCouponApplied,
+  @JsonValue('ORDER_COUPON_REMOVED')
+  orderCouponRemoved,
+  @JsonValue('ORDER_CUSTOMER_UPDATED')
+  orderCustomerUpdated,
+  @JsonValue('ORDER_FULFILLMENT')
+  orderFulfillment,
+  @JsonValue('ORDER_FULFILLMENT_TRANSITION')
+  orderFulfillmentTransition,
+  @JsonValue('ORDER_MODIFIED')
+  orderModified,
+  @JsonValue('ORDER_NOTE')
+  orderNote,
+  @JsonValue('ORDER_PAYMENT_TRANSITION')
+  orderPaymentTransition,
+  @JsonValue('ORDER_REFUND_TRANSITION')
+  orderRefundTransition,
+  @JsonValue('ORDER_STATE_TRANSITION')
+  orderStateTransition,
+}

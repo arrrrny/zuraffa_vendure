@@ -1,0 +1,18 @@
+import 'package:zorphy_annotation/zorphy_annotation.dart';
+
+import '../enums/sort_order.dart';
+
+part 'facet_value_sort_parameter.zorphy.dart';
+part 'facet_value_sort_parameter.g.dart';
+
+/// Vendure `FacetValueSortParameter` entity — zorphy-generated from the schema
+/// manifest (spec 001, entity-manifest.json).
+@Zorphy(generateJson: true)
+abstract class $FacetValueSortParameter {
+  SortOrder? get code;
+  SortOrder? get createdAt;
+  SortOrder? get facetId;
+  SortOrder? get id;
+  SortOrder? get name;
+  SortOrder? get updatedAt;
+}

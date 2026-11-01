@@ -1,0 +1,34 @@
+import 'package:zorphy_annotation/zorphy_annotation.dart';
+
+import '../boolean_operators/boolean_operators.dart';
+import '../date_operators/date_operators.dart';
+import '../id_operators/id_operators.dart';
+import '../number_operators/number_operators.dart';
+import '../string_operators/string_operators.dart';
+
+part 'order_filter_parameter.zorphy.dart';
+part 'order_filter_parameter.g.dart';
+
+/// Vendure `OrderFilterParameter` entity — zorphy-generated from the schema
+/// manifest (spec 001, entity-manifest.json).
+@Zorphy(generateJson: true)
+abstract class $OrderFilterParameter {
+  List<OrderFilterParameter>? get and;
+  List<OrderFilterParameter>? get or;
+  BooleanOperators? get active;
+  StringOperators? get code;
+  DateOperators? get createdAt;
+  StringOperators? get currencyCode;
+  IdOperators? get id;
+  DateOperators? get orderPlacedAt;
+  NumberOperators? get shipping;
+  NumberOperators? get shippingWithTax;
+  StringOperators? get state;
+  NumberOperators? get subTotal;
+  NumberOperators? get subTotalWithTax;
+  NumberOperators? get total;
+  NumberOperators? get totalQuantity;
+  NumberOperators? get totalWithTax;
+  StringOperators? get type;
+  DateOperators? get updatedAt;
+}

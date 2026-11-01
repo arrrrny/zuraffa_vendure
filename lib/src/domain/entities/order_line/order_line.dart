@@ -1,0 +1,43 @@
+import 'package:zorphy_annotation/zorphy_annotation.dart';
+
+import '../asset/asset.dart';
+import '../discount/discount.dart';
+import '../fulfillment_line/fulfillment_line.dart';
+import '../product_variant/product_variant.dart';
+import '../tax_line/tax_line.dart';
+
+part 'order_line.zorphy.dart';
+part 'order_line.g.dart';
+
+/// Vendure `OrderLine` entity — zorphy-generated from the schema
+/// manifest (spec 001, entity-manifest.json).
+@Zorphy(generateJson: true)
+abstract class $OrderLine {
+  DateTime get createdAt;
+  Map<String, dynamic>? get customFields;
+  double get discountedLinePrice;
+  double get discountedLinePriceWithTax;
+  double get discountedUnitPrice;
+  double get discountedUnitPriceWithTax;
+  List<Discount> get discounts;
+  Asset? get featuredAsset;
+  List<FulfillmentLine>? get fulfillmentLines;
+  String get id;
+  double get linePrice;
+  double get linePriceWithTax;
+  double get lineTax;
+  int get orderPlacedQuantity;
+  ProductVariant get productVariant;
+  double get proratedLinePrice;
+  double get proratedLinePriceWithTax;
+  double get proratedUnitPrice;
+  double get proratedUnitPriceWithTax;
+  int get quantity;
+  List<TaxLine> get taxLines;
+  double get taxRate;
+  double get unitPrice;
+  double get unitPriceChangeSinceAdded;
+  double get unitPriceWithTax;
+  double get unitPriceWithTaxChangeSinceAdded;
+  DateTime get updatedAt;
+}

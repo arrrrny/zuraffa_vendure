@@ -1,0 +1,323 @@
+// dart format width=80
+// ignore_for_file: UNNECESSARY_CAST
+// ignore_for_file: type=lint
+
+part of 'order_modification_error.dart';
+
+// **************************************************************************
+// ZorphyGenerator
+// **************************************************************************
+
+@JsonSerializable(explicitToJson: true, checked: true)
+class OrderModificationError {
+  OrderModificationError({
+    required ErrorCode this.errorCode,
+    required String this.message,
+  });
+
+  factory OrderModificationError.fromJson(Map<String, dynamic> json) =>
+      _$OrderModificationErrorFromJson(json);
+
+  final ErrorCode errorCode;
+
+  final String message;
+
+  OrderModificationError copyWith({ErrorCode? errorCode, String? message}) {
+    return OrderModificationError(
+      errorCode: errorCode ?? this.errorCode,
+      message: message ?? this.message,
+    );
+  }
+
+  /// Returns a copy of this entity with [field] set to [value].
+  ///
+  /// Delegates to [copyWith]: the receiver is never mutated and a
+  /// null [value] keeps the current field value.
+  OrderModificationError copyWithField<T>(
+    Field<OrderModificationError, T> field,
+    T value,
+  ) {
+    switch (field.name) {
+      case 'errorCode':
+        return copyWith(errorCode: value as ErrorCode);
+      case 'message':
+        return copyWith(message: value as String);
+      default:
+        throw ArgumentError.value(
+          field.name,
+          'field',
+          'OrderModificationError has no settable field with this name',
+        );
+    }
+  }
+
+  OrderModificationError copyWithOrderModificationError({
+    ErrorCode? errorCode,
+    String? message,
+  }) {
+    return copyWith(errorCode: errorCode, message: message);
+  }
+
+  OrderModificationError patchWithOrderModificationError([
+    OrderModificationErrorPatch? patchInput,
+  ]) {
+    final _patcher = patchInput ?? OrderModificationErrorPatch();
+    final _patchMap = _patcher.patchMap;
+    return OrderModificationError(
+      errorCode: _patchMap.containsKey(OrderModificationError$.errorCode)
+          ? ((_patchMap[OrderModificationError$.errorCode] is Function)
+                    ? _patchMap[OrderModificationError$.errorCode](
+                        this.errorCode,
+                      )
+                    : (_patchMap[OrderModificationError$.errorCode] is Patch)
+                    ? _patchMap[OrderModificationError$.errorCode].applyTo(
+                        this.errorCode,
+                      )
+                    : _patchMap[OrderModificationError$.errorCode])
+                as ErrorCode
+          : this.errorCode,
+      message: _patchMap.containsKey(OrderModificationError$.message)
+          ? ((_patchMap[OrderModificationError$.message] is Function)
+                    ? _patchMap[OrderModificationError$.message](this.message)
+                    : (_patchMap[OrderModificationError$.message] is Patch)
+                    ? _patchMap[OrderModificationError$.message].applyTo(
+                        this.message,
+                      )
+                    : _patchMap[OrderModificationError$.message])
+                as String
+          : this.message,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is OrderModificationError &&
+        errorCode == other.errorCode &&
+        message == other.message;
+  }
+
+  @override
+  int get hashCode {
+    return Object.hash(this.errorCode, this.message);
+  }
+
+  @override
+  String toString() {
+    return 'OrderModificationError(' +
+        'errorCode: ${errorCode}' +
+        ', ' +
+        'message: ${message})';
+  }
+
+  Map<String, dynamic> toJsonLean() {
+    final Map<String, dynamic> data = _$OrderModificationErrorToJson(this);
+    _sanitizeJson(data);
+    return data;
+  }
+
+  dynamic _sanitizeJson(dynamic json) {
+    if (json is Map<String, dynamic>) {
+      json.remove('__typename');
+      return json..forEach((key, value) {
+        json[key] = _sanitizeJson(value);
+      });
+    } else if (json is List) {
+      return json.map((e) => _sanitizeJson(e)).toList();
+    }
+    return json;
+  }
+}
+
+extension OrderModificationErrorPropertyHelpers on OrderModificationError {
+  bool get isErrorCodeAlreadyLoggedInError {
+    return this.errorCode == ErrorCode.alreadyLoggedInError;
+  }
+
+  bool get isErrorCodeCouponCodeExpiredError {
+    return this.errorCode == ErrorCode.couponCodeExpiredError;
+  }
+
+  bool get isErrorCodeCouponCodeInvalidError {
+    return this.errorCode == ErrorCode.couponCodeInvalidError;
+  }
+
+  bool get isErrorCodeCouponCodeLimitError {
+    return this.errorCode == ErrorCode.couponCodeLimitError;
+  }
+
+  bool get isErrorCodeEmailAddressConflictError {
+    return this.errorCode == ErrorCode.emailAddressConflictError;
+  }
+
+  bool get isErrorCodeGuestCheckoutError {
+    return this.errorCode == ErrorCode.guestCheckoutError;
+  }
+
+  bool get isErrorCodeIdentifierChangeTokenExpiredError {
+    return this.errorCode == ErrorCode.identifierChangeTokenExpiredError;
+  }
+
+  bool get isErrorCodeIdentifierChangeTokenInvalidError {
+    return this.errorCode == ErrorCode.identifierChangeTokenInvalidError;
+  }
+
+  bool get isErrorCodeIneligiblePaymentMethodError {
+    return this.errorCode == ErrorCode.ineligiblePaymentMethodError;
+  }
+
+  bool get isErrorCodeIneligibleShippingMethodError {
+    return this.errorCode == ErrorCode.ineligibleShippingMethodError;
+  }
+
+  bool get isErrorCodeInsufficientStockError {
+    return this.errorCode == ErrorCode.insufficientStockError;
+  }
+
+  bool get isErrorCodeInvalidCredentialsError {
+    return this.errorCode == ErrorCode.invalidCredentialsError;
+  }
+
+  bool get isErrorCodeMissingPasswordError {
+    return this.errorCode == ErrorCode.missingPasswordError;
+  }
+
+  bool get isErrorCodeNativeAuthStrategyError {
+    return this.errorCode == ErrorCode.nativeAuthStrategyError;
+  }
+
+  bool get isErrorCodeNegativeQuantityError {
+    return this.errorCode == ErrorCode.negativeQuantityError;
+  }
+
+  bool get isErrorCodeNotVerifiedError {
+    return this.errorCode == ErrorCode.notVerifiedError;
+  }
+
+  bool get isErrorCodeNoActiveOrderError {
+    return this.errorCode == ErrorCode.noActiveOrderError;
+  }
+
+  bool get isErrorCodeOrderLimitError {
+    return this.errorCode == ErrorCode.orderLimitError;
+  }
+
+  bool get isErrorCodeOrderModificationError {
+    return this.errorCode == ErrorCode.orderModificationError;
+  }
+
+  bool get isErrorCodeOrderPaymentStateError {
+    return this.errorCode == ErrorCode.orderPaymentStateError;
+  }
+
+  bool get isErrorCodeOrderStateTransitionError {
+    return this.errorCode == ErrorCode.orderStateTransitionError;
+  }
+
+  bool get isErrorCodePasswordAlreadySetError {
+    return this.errorCode == ErrorCode.passwordAlreadySetError;
+  }
+
+  bool get isErrorCodePasswordResetTokenExpiredError {
+    return this.errorCode == ErrorCode.passwordResetTokenExpiredError;
+  }
+
+  bool get isErrorCodePasswordResetTokenInvalidError {
+    return this.errorCode == ErrorCode.passwordResetTokenInvalidError;
+  }
+
+  bool get isErrorCodePasswordValidationError {
+    return this.errorCode == ErrorCode.passwordValidationError;
+  }
+
+  bool get isErrorCodePaymentDeclinedError {
+    return this.errorCode == ErrorCode.paymentDeclinedError;
+  }
+
+  bool get isErrorCodePaymentFailedError {
+    return this.errorCode == ErrorCode.paymentFailedError;
+  }
+
+  bool get isErrorCodeUnknownError {
+    return this.errorCode == ErrorCode.unknownError;
+  }
+
+  bool get isErrorCodeVerificationTokenExpiredError {
+    return this.errorCode == ErrorCode.verificationTokenExpiredError;
+  }
+
+  bool get isErrorCodeVerificationTokenInvalidError {
+    return this.errorCode == ErrorCode.verificationTokenInvalidError;
+  }
+
+  bool get hasMessage {
+    return this.message.isNotEmpty;
+  }
+
+  bool get noMessage {
+    return this.message.isEmpty;
+  }
+}
+
+extension OrderModificationErrorSerialization on OrderModificationError {
+  Map<String, dynamic> toJson() {
+    return _$OrderModificationErrorToJson(this);
+  }
+}
+
+enum OrderModificationError$ { errorCode, message }
+
+class OrderModificationErrorPatch
+    extends PatchBase<OrderModificationError, OrderModificationError$> {
+  OrderModificationError applyTo(OrderModificationError entity) {
+    return entity.patchWithOrderModificationError(this);
+  }
+
+  OrderModificationErrorPatch withErrorCode(ErrorCode? value) {
+    patchMap[OrderModificationError$.errorCode] = value;
+    return this;
+  }
+
+  OrderModificationErrorPatch withMessage(String? value) {
+    patchMap[OrderModificationError$.message] = value;
+    return this;
+  }
+}
+
+/// Field descriptors for [OrderModificationError] query construction
+abstract final class OrderModificationErrorFields {
+  static const errorCode = Field<OrderModificationError, ErrorCode>(
+    'errorCode',
+    _$errorCode,
+  );
+
+  static const message = Field<OrderModificationError, String>(
+    'message',
+    _$message,
+  );
+
+  static ErrorCode _$errorCode(OrderModificationError e) {
+    return e.errorCode;
+  }
+
+  static String _$message(OrderModificationError e) {
+    return e.message;
+  }
+}
+
+extension OrderModificationErrorCompareE on OrderModificationError {
+  Map<String, dynamic> compareToOrderModificationError(
+    OrderModificationError other,
+  ) {
+    final Map<String, dynamic> diff = {};
+
+    if (errorCode != other.errorCode) {
+      diff['errorCode'] = () => other.errorCode;
+    }
+
+    if (message != other.message) {
+      diff['message'] = () => other.message;
+    }
+    return diff;
+  }
+}
