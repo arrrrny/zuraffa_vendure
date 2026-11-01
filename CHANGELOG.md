@@ -1,3 +1,12 @@
+## 7.3.3
+
+- Fix: `mutateWithHeaders` (the auth seam used by `getToken`/
+  `getTokenFirebase`) now applies the same `__typename` -> `runtimeType`
+  normalization as `mutate`. Previously the sealed-union decoders saw no
+  discriminator and threw `Unknown AuthenticationResult variant: null`
+  on every real backend authenticate response, breaking fresh-install
+  logins (zik_zak, 2026-11-01). Regression test G10.
+
 ## 7.3.2
 
 The Zuraffa reimplementation of the Vendure Flutter SDK, shipped as the

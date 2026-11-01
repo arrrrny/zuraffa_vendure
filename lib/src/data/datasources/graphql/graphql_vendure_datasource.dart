@@ -277,7 +277,19 @@ class GraphQLVendureDataSource implements VendureDataSource {
         'Expected a JSON object for $expectedDataType, got ${data.runtimeType}',
       );
     }
-    return VendureResponse<T>(fromJson(data), responseHeaders);
+    // Same normalization `mutate` applies: the __typename -> runtimeType
+    // conversion for union discrimination. Without it the auth seam's
+    // sealed-union decoders (e.g. AuthenticationResult.fromJson) see no
+    // runtimeType and throw 'Unknown … variant: null' on every real
+    // backend response (fresh-install firebase auth broke on zik_zak).
+    final normalized = VendureUtils.normalizeGraphQLData(
+      Map<String, dynamic>.from(data),
+      convertEnums: false,
+    );
+    return VendureResponse<T>(
+      fromJson(normalized as Map<String, dynamic>),
+      responseHeaders,
+    );
   }
 
   @override

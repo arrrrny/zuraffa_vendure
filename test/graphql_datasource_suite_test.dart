@@ -1,6 +1,8 @@
 import 'package:graphql/client.dart';
 import 'package:test/test.dart';
 import 'package:vendure/vendure.dart';
+import 'package:vendure/src/domain/entities/authentication_result/authentication_result.dart'
+    as auth;
 
 /// Spec `001-vendure-zuraffa-rewrite` — the GraphQL datasource adapter:
 /// response-envelope handling ported from the source SDK
@@ -293,6 +295,37 @@ void main() {
 
       expect(result, isA<UpdateOrderItemsResult>());
       expect((result as dynamic).id, 'o-9');
+    });
+
+    test('G10: mutateWithHeaders normalizes __typename too — the auth seam '
+        'decodes unions instead of throwing "variant: null"', () async {
+      // Regression (zik_zak fresh-install guest login, 2026-11-01):
+      // getToken/getTokenFirebase run through mutateWithHeaders, which
+      // skipped the normalization `mutate` applies, so
+      // AuthenticationResult.fromJson saw no runtimeType and threw
+      // 'Unknown AuthenticationResult variant: null' on every real
+      // authenticate response.
+      final ds = dataSourceFor({
+        'data': {
+          '__typename': 'Mutation',
+          'authenticate': {
+            '__typename': 'CurrentUser',
+            'id': 'c-1',
+            'identifier': 'guest@example.com',
+          },
+        },
+      });
+
+      final response = await ds.mutateWithHeaders<AuthenticationResult>(
+        'mutation { authenticate { __typename id identifier } }',
+        variables: const {},
+        headers: const {},
+        fromJson: AuthenticationResult.fromJson,
+        expectedDataType: 'authenticate',
+      );
+
+      expect(response.data, isA<auth.CurrentUser>());
+      expect((response.data as auth.CurrentUser).id, 'c-1');
     });
   });
 }
