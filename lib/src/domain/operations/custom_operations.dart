@@ -77,7 +77,7 @@ class CustomOperations {
       VendureUtils.replaceCustomFieldsFragment(mutation, const {}),
       variables: _normalize(variables, convertEnums),
       headers: const {},
-      fromJson: fromJson ?? (_identity as T Function(Map<String, dynamic>)),
+      fromJson: fromJson,
       expectedDataType: expectedDataType ?? 'data',
     );
   }
@@ -93,7 +93,7 @@ class CustomOperations {
       query,
       variables: _normalize(variables, convertEnums),
       headers: const {},
-      fromJson: fromJson ?? (_identity as T Function(Map<String, dynamic>)),
+      fromJson: fromJson,
       expectedDataType: expectedDataType ?? 'data',
     );
   }
@@ -139,11 +139,13 @@ class CustomOperations {
     bool convertEnums = false,
     ListOptions? options,
   }) async {
+    // fromJson omitted: the port returns the raw extracted envelope and
+    // _paginate decodes the items/totalItems pair (ported from the source
+    // SDK's CustomOperations.queryListPaginated).
     final data = await _dataSource.query<dynamic>(
       query,
       variables: _withOptions(const {}, options),
       headers: const {},
-      fromJson: _identity as dynamic Function(Map<String, dynamic>),
       expectedDataType: expectedDataType ?? 'data',
     );
     return _paginate<T>(data, fromJson);
@@ -161,7 +163,6 @@ class CustomOperations {
       mutation,
       variables: _normalize(_withOptions(variables, options), convertEnums),
       headers: const {},
-      fromJson: _identity as dynamic Function(Map<String, dynamic>),
       expectedDataType: expectedDataType ?? 'data',
     );
     return _paginate<T>(data, fromJson);
@@ -180,7 +181,7 @@ class CustomOperations {
       operation,
       variables: _normalize(variables, convertEnums),
       headers: const {},
-      fromJson: _identity as dynamic Function(Map<String, dynamic>),
+      fromJson: _identityAsMap,
       expectedDataType: 'data',
     );
     final captured = <String, String>{};
@@ -195,7 +196,11 @@ class CustomOperations {
 
   // ---- internals ---------------------------------------------------------
 
-  static dynamic _identity(dynamic json) => json;
+  /// The passthrough decoder for the raw envelope — the auth seam's
+  /// [mutateWithHeaders] path needs a non-null fromJson to satisfy the
+  /// port's typed decode while returning the envelope map unchanged.
+  static Map<String, dynamic> _identityAsMap(Map<String, dynamic> json) =>
+      Map<String, dynamic>.from(json);
 
   static Map<String, dynamic> _normalize(
     Map<String, dynamic> variables,
@@ -204,8 +209,10 @@ class CustomOperations {
     if (!convertEnums) {
       return variables;
     }
-    return VendureUtils.normalizeMutationData(variables)
-        as Map<String, dynamic>;
+    return VendureUtils.normalizeMutationData(
+      variables,
+      convertEnums: convertEnums,
+    ) as Map<String, dynamic>;
   }
 
   static Map<String, dynamic> _withOptions(

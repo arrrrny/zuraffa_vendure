@@ -15,27 +15,36 @@ abstract class VendureDataSource {
   /// Executes a GraphQL query document with [variables] and [headers],
   /// returning the decoded [T] extracted from the response's [expectedDataType]
   /// key (the Vendure response envelope: `{data: {<expectedDataType>: …}}`).
+  ///
+  /// [fromJson] is optional: when omitted the extracted payload is returned
+  /// as-is (the raw escape hatch the custom operations ride — T may be a
+  /// scalar, a Map, or a List).
   Future<T> query<T>(
     String document, {
     required Map<String, dynamic> variables,
     required Map<String, String> headers,
-    required T Function(Map<String, dynamic> json) fromJson,
+    T Function(Map<String, dynamic> json)? fromJson,
     required String expectedDataType,
   });
 
   /// Executes a GraphQL mutation document — same envelope and error path
   /// as [query].
+  ///
+  /// [fromJson] is optional (see [query]).
   Future<T> mutate<T>(
     String document, {
     required Map<String, dynamic> variables,
     required Map<String, String> headers,
-    required T Function(Map<String, dynamic> json) fromJson,
+    T Function(Map<String, dynamic> json)? fromJson,
     required String expectedDataType,
   });
 
-  /// Executes a query whose expected data type is a LIST (the Vendure
-  /// list envelope: `{data: {<expectedDataType>: […]}}`), decoding each
-  /// element with [fromJson].
+  /// Executes a query whose expected data type is a LIST (the Vendure list
+  /// envelope: `{data: {<expectedDataType>: […]}}` — the extracted payload
+  /// itself is the list), decoding each element with [fromJson].
+  ///
+  /// [fromJson] is optional: when omitted the raw elements are cast to T
+  /// (scalar lists such as `nextOrderStates`).
   Future<List<T>> queryList<T>(
     String document, {
     required Map<String, dynamic> variables,

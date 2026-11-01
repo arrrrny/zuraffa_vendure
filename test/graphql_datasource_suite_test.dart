@@ -270,5 +270,29 @@ void main() {
       expect(swapped.languageCode, 'fr');
       expect(base.languageCode, 'en');
     });
+
+    test('G9: __typename is normalized to runtimeType before the union decodes '
+        '(the wire-dispatch linchpin)', () async {
+      // The server sends __typename; the hand-written sealed unions
+      // dispatch on runtimeType. The adapter's normalization (ported
+      // from the source SDK's VendureRemoteDataSource) bridges the two.
+      final ds = dataSourceFor({
+        'data': {
+          '__typename': 'Mutation',
+          'addItemToOrder': {'__typename': 'Order', 'id': 'o-9', 'code': 'T-9'},
+        },
+      });
+
+      final result = await ds.mutate<UpdateOrderItemsResult>(
+        'mutation { addItemToOrder { id } }',
+        variables: const {},
+        headers: const {},
+        fromJson: UpdateOrderItemsResult.fromJson,
+        expectedDataType: 'addItemToOrder',
+      );
+
+      expect(result, isA<UpdateOrderItemsResult>());
+      expect((result as dynamic).id, 'o-9');
+    });
   });
 }

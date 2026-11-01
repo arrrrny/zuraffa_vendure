@@ -182,7 +182,7 @@ class GraphQLVendureDataSource implements VendureDataSource {
     String document, {
     required Map<String, dynamic> variables,
     required Map<String, String> headers,
-    required T Function(Map<String, dynamic> json) fromJson,
+    T Function(Map<String, dynamic> json)? fromJson,
     required String expectedDataType,
   }) {
     return _execute<T>(
@@ -200,7 +200,7 @@ class GraphQLVendureDataSource implements VendureDataSource {
     String document, {
     required Map<String, dynamic> variables,
     required Map<String, String> headers,
-    required T Function(Map<String, dynamic> json) fromJson,
+    T Function(Map<String, dynamic> json)? fromJson,
     required String expectedDataType,
   }) {
     return _execute<T>(
@@ -221,11 +221,10 @@ class GraphQLVendureDataSource implements VendureDataSource {
     T Function(Map<String, dynamic> json)? fromJson,
     required String expectedDataType,
   }) async {
-    final data = await _execute<dynamic>(
+    final data = await _executeRaw(
       document,
       variables: variables,
       headers: headers,
-      fromJson: (json) => json,
       expectedDataType: expectedDataType,
       isMutation: false,
     );
@@ -234,8 +233,16 @@ class GraphQLVendureDataSource implements VendureDataSource {
         'Expected a JSON list for $expectedDataType, got ${data.runtimeType}',
       );
     }
-    final decode = fromJson ?? (dynamic e) => e as T;
-    return data.map<T>((e) => decode(e as Map<String, dynamic>)).toList();
+    final decode = fromJson;
+    if (decode == null) {
+      // Scalar list (e.g. nextOrderStates): the raw elements are T.
+      return List<T>.from(data);
+    }
+    return data
+        .map<T>(
+          (e) => decode(Map<String, dynamic>.from(e as Map<String, dynamic>)),
+        )
+        .toList();
   }
 
   @override
@@ -354,7 +361,46 @@ class GraphQLVendureDataSource implements VendureDataSource {
     String document, {
     required Map<String, dynamic> variables,
     required Map<String, String> headers,
-    required T Function(Map<String, dynamic> json) fromJson,
+    T Function(Map<String, dynamic> json)? fromJson,
+    required String expectedDataType,
+    required bool isMutation,
+  }) async {
+    final data = await _executeRaw(
+      document,
+      variables: variables,
+      headers: headers,
+      expectedDataType: expectedDataType,
+      isMutation: isMutation,
+    );
+    if (fromJson == null) {
+      // The raw escape hatch: the extracted payload is returned as-is
+      // (scalar, Map, or List) — the custom operations' decode-less path.
+      return data as T;
+    }
+    if (data is! Map<String, dynamic>) {
+      throw VendureDataSourceException(
+        'Expected a JSON object for $expectedDataType, got ${data.runtimeType}',
+      );
+    }
+    // Response normalization: always convertEnums=false because entity
+    // .g.dart files use @JsonValue enum maps which expect the raw GraphQL
+    // enum values; the __typename -> runtimeType conversion still runs for
+    // union discrimination (ported from the source SDK).
+    final normalized = VendureUtils.normalizeGraphQLData(
+      Map<String, dynamic>.from(data),
+      convertEnums: false,
+    );
+    return fromJson(normalized as Map<String, dynamic>);
+  }
+
+  /// The raw transport step the source SDK's [_executeGraphQLOperation]
+  /// played: execute the (sanitized) document, validate the result, and
+  /// extract the [expectedDataType] payload — no typed decode, no Map
+  /// validation (list and scalar operations ride this too).
+  Future<dynamic> _executeRaw(
+    String document, {
+    required Map<String, dynamic> variables,
+    required Map<String, String> headers,
     required String expectedDataType,
     required bool isMutation,
   }) async {
@@ -389,13 +435,7 @@ class GraphQLVendureDataSource implements VendureDataSource {
         ? await client.mutate(options as MutationOptions)
         : await client.query(options as QueryOptions);
 
-    final data = _handleErrors(result, expectedDataType);
-    if (data is! Map<String, dynamic>) {
-      throw VendureDataSourceException(
-        'Expected a JSON object for $expectedDataType, got ${data.runtimeType}',
-      );
-    }
-    return fromJson(data);
+    return _handleErrors(result, expectedDataType);
   }
 
   /// Ported from the source SDK: validate the [QueryResult] and extract

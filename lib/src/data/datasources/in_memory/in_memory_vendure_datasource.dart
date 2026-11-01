@@ -1,4 +1,5 @@
 import '../../../domain/datasources/vendure_datasource.dart';
+import '../../../vendure/vendure_utils.dart';
 
 /// One recorded Vendure request — the document, variables, headers, and
 /// the kind of operation, exactly as the repository passed them.
@@ -29,9 +30,13 @@ class VendureRequestRecord {
 /// (spec 001 FR-005/FR-008).
 class InMemoryVendureDataSource implements VendureDataSource {
   /// Canned response payloads keyed by the operation name the repository
-  /// declares via [expectedDataType]. A miss resolves to an empty map —
-  /// the shape a real endpoint returns for an operation with no data.
-  final Map<String, Map<String, dynamic>> script;
+  /// declares via [expectedDataType] — each value is the EXTRACTED payload
+  /// (the Vendure response envelope minus the `data` wrapper and minus the
+  /// [expectedDataType] key): a Map for object operations, a bare List for
+  /// list operations, a scalar for raw custom queries. A miss resolves to
+  /// an empty map — the shape a real endpoint returns for an operation
+  /// with no data.
+  final Map<String, dynamic> script;
 
   /// When non-null, every operation throws this instead of returning the
   /// scripted payload (the failure-path test seam).
@@ -47,10 +52,10 @@ class InMemoryVendureDataSource implements VendureDataSource {
     String document, {
     required Map<String, dynamic> variables,
     required Map<String, String> headers,
-    required T Function(Map<String, dynamic> json) fromJson,
+    T Function(Map<String, dynamic> json)? fromJson,
     required String expectedDataType,
   }) async {
-    return _execute(
+    return _execute<T>(
       document,
       variables,
       headers,
@@ -65,10 +70,10 @@ class InMemoryVendureDataSource implements VendureDataSource {
     String document, {
     required Map<String, dynamic> variables,
     required Map<String, String> headers,
-    required T Function(Map<String, dynamic> json) fromJson,
+    T Function(Map<String, dynamic> json)? fromJson,
     required String expectedDataType,
   }) async {
-    return _execute(
+    return _execute<T>(
       document,
       variables,
       headers,
@@ -84,7 +89,7 @@ class InMemoryVendureDataSource implements VendureDataSource {
     Map<String, String> headers,
     String expectedDataType, {
     required bool isMutation,
-    required T Function(Map<String, dynamic> json) fromJson,
+    T Function(Map<String, dynamic> json)? fromJson,
   }) {
     requests.add(
       VendureRequestRecord(
@@ -100,7 +105,27 @@ class InMemoryVendureDataSource implements VendureDataSource {
       throw scripted;
     }
     final payload = script[expectedDataType] ?? <String, dynamic>{};
-    return fromJson(payload);
+    final decode = fromJson;
+    if (decode == null) {
+      // The raw escape hatch: the extracted payload is returned as-is
+      // (scalar, Map, or List) — the custom operations' decode-less path.
+      return payload as T;
+    }
+    if (payload is! Map<String, dynamic>) {
+      throw VendureDataSourceException(
+        'Expected a JSON object for $expectedDataType, '
+        'got ${payload.runtimeType}',
+      );
+    }
+    // Response normalization (ported from the source SDK's remote
+    // datasource): __typename -> runtimeType for union discrimination;
+    // always convertEnums=false because the zorphy entities' generated
+    // enum maps expect the raw GraphQL enum values.
+    final normalized = VendureUtils.normalizeGraphQLData(
+      Map<String, dynamic>.from(payload),
+      convertEnums: false,
+    );
+    return decode(normalized as Map<String, dynamic>);
   }
 
   @override
@@ -128,9 +153,23 @@ class InMemoryVendureDataSource implements VendureDataSource {
     if (payload == null) {
       return <T>[];
     }
-    final list = payload['items'] as List<dynamic>? ?? <dynamic>[];
-    final decode = fromJson ?? (dynamic e) => e as T;
-    return list.map<T>((e) => decode(e as Map<String, dynamic>)).toList();
+    // The Vendure list envelope: the extracted payload itself IS the list
+    // (the source SDK: `if (data is! List) throw; data.map(fromJson)`).
+    if (payload is! List<dynamic>) {
+      throw VendureDataSourceException(
+        'Expected a JSON list for $expectedDataType, got ${payload.runtimeType}',
+      );
+    }
+    final decode = fromJson;
+    if (decode == null) {
+      // Scalar list (e.g. nextOrderStates): the raw elements are T.
+      return List<T>.from(payload);
+    }
+    return payload
+        .map<T>(
+          (e) => decode(Map<String, dynamic>.from(e as Map<String, dynamic>)),
+        )
+        .toList();
   }
 
   @override
