@@ -6,12 +6,20 @@
 
 **Created**: 2026-10-31
 
-**Status**: Approved — greenfield reimplementation of the published `vendure`
+**Status**: Implemented — greenfield reimplementation of the published `vendure`
 Flutter SDK (vendure-flutter-sdk, pub.dev 3.0.1) onto the Zuraffa
 clean-architecture stack. The prior work in the source repo
 (`specs/001-vendure-zuraffa-plugin-rewri/`: research.md, entity-manifest.json,
 contracts/facade.md) is the assessment and the contract; this spec is the
 spec-kit artifact that work was always heading toward.
+
+**Shipped**: `vendure` 7.3.2 (pub.dev, 2026-11-01) + 7.3.3 hotfix (the auth
+seam's headers-only contract — `mutateWithHeaders` tolerates an absent body;
+consumer regression found by the fleet verification round via zik_zak's
+vendure-client init scenarios, locked by regression tests A2/G10). Evidence:
+26/26 behavioral tests (D1–D6 port contract, G1–G10 graphql adapter, F/O/A/C
+facade + operation groups), `dart analyze` clean, and the consumer gate —
+zik_zak's full suite (2007 tests) green against hosted 7.3.3.
 
 **Input**: the verified facade contract (`contracts/facade.md`, verified
 2026-08-07 against the source SDK's `lib/vendure.dart`), the schema provenance
