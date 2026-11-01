@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:graphql/client.dart';
 
 import '../../../domain/datasources/vendure_datasource.dart';
+import '../../../vendure/app_check_provider.dart';
+import '../../../vendure/vendure_utils.dart';
 
 /// The runtime context every outbound request rides: the endpoint plus the
 /// Vendure multi-tenant/multi-language routing vocabulary — the same link
@@ -22,6 +24,9 @@ class VendureContext {
     this.apiKeyHeaderKey = 'vendure-api-key',
     this.token,
     this.useVendureGuestSession = false,
+    this.customFieldsConfig,
+    this.timeout,
+    this.appCheckConfig,
     this.defaultHeaders = const {},
   });
 
@@ -32,6 +37,19 @@ class VendureContext {
   final String apiKeyHeaderKey;
   final String? token;
   final bool useVendureGuestSession;
+
+  /// The custom-fields configuration the document sanitizer applies
+  /// (ported from the source SDK's `_prepareOperation`).
+  final Map<String, List<dynamic>>? customFieldsConfig;
+
+  /// The per-operation timeout (the source SDK's
+  /// `queryRequestTimeout`).
+  final Duration? timeout;
+
+  /// The Firebase App Check vocabulary (ported from the source SDK's
+  /// app-check AuthLink).
+  final AppCheckConfig? appCheckConfig;
+
   final Map<String, String> defaultHeaders;
 
   VendureContext copyWith({
@@ -127,6 +145,27 @@ class GraphQLVendureDataSource implements VendureDataSource {
       link = AuthLink(
         headerKey: 'vendure-token',
         getToken: () async => context.channelToken,
+      ).concat(link);
+    }
+
+    if (context.appCheckConfig != null) {
+      final appCheckConfig = context.appCheckConfig!;
+      link = AuthLink(
+        headerKey: appCheckConfig.headerName,
+        getToken: () async {
+          try {
+            final token = await appCheckConfig.tokenProvider();
+            if (token == null && appCheckConfig.required) {
+              throw Exception('App Check token is required but not available');
+            }
+            return token;
+          } catch (e) {
+            if (appCheckConfig.required) {
+              rethrow;
+            }
+            return null;
+          }
+        },
       ).concat(link);
     }
 
@@ -234,6 +273,83 @@ class GraphQLVendureDataSource implements VendureDataSource {
     return VendureResponse<T>(fromJson(data), responseHeaders);
   }
 
+  @override
+  Stream<T> subscribe<T>(
+    String document, {
+    required Map<String, dynamic> variables,
+    required Map<String, String> headers,
+    required T Function(Map<String, dynamic> json) fromJson,
+    required String expectedDataType,
+  }) {
+    // The subscription transport: a WebSocket client over the context's
+    // endpoint (http(s) → ws(s) scheme swap), the auth vocabulary riding
+    // the socket's initialPayload (ported from the source SDK's
+    // _getSubscriptionClient/_buildWebsocketPayload).
+    final client = _subscriptionClient ??= _buildSubscriptionClient();
+    final processedDocument = context.customFieldsConfig != null
+        ? VendureUtils.sanitizeGraphQLQuery(
+            document,
+            context.customFieldsConfig!,
+          )
+        : document;
+    final stream = client.subscribe(
+      SubscriptionOptions(
+        document: gql(processedDocument),
+        variables: variables,
+        context: const Context().withEntry(HttpLinkHeaders(headers: headers)),
+      ),
+    );
+    return stream.map<T>((result) {
+      final data = _handleErrors(result, expectedDataType);
+      if (data is! Map<String, dynamic>) {
+        throw VendureDataSourceException(
+          'Subscription data must be a map for $expectedDataType, got ${data.runtimeType}',
+        );
+      }
+      return fromJson(data);
+    });
+  }
+
+  GraphQLClient? _subscriptionClient;
+
+  GraphQLClient _buildSubscriptionClient() {
+    final endpointUrl = context.endpointWithLanguageCode;
+    final uri = Uri.parse(endpointUrl);
+    final scheme = switch (uri.scheme) {
+      'https' => 'wss',
+      'http' => 'ws',
+      _ => uri.scheme,
+    };
+    final wsEndpoint = uri.replace(scheme: scheme).toString();
+    return GraphQLClient(
+      link: WebSocketLink(
+        wsEndpoint,
+        config: SocketClientConfig(
+          autoReconnect: true,
+          inactivityTimeout: const Duration(seconds: 30),
+          initialPayload: _buildWebsocketPayload,
+        ),
+      ),
+      cache: GraphQLCache(),
+    );
+  }
+
+  /// The socket's initialPayload — the auth vocabulary the Vendure
+  /// WebSocket gateway authenticates the connection with.
+  Map<String, dynamic> _buildWebsocketPayload() {
+    final payload = <String, dynamic>{};
+    if (context.apiKey != null) {
+      payload[context.apiKeyHeaderKey] = context.apiKey;
+    }
+    if (!context.useVendureGuestSession && context.token != null) {
+      payload['Authorization'] = 'Bearer ${context.token}';
+    }
+    if (context.channelToken != null) {
+      payload['vendure-token'] = context.channelToken;
+    }
+    return payload;
+  }
+
   Future<T> _execute<T>(
     String document, {
     required Map<String, dynamic> variables,
@@ -243,12 +359,18 @@ class GraphQLVendureDataSource implements VendureDataSource {
     required bool isMutation,
   }) async {
     final client = _graphqlClient;
+    final processedDocument = context.customFieldsConfig != null
+        ? VendureUtils.sanitizeGraphQLQuery(
+            document,
+            context.customFieldsConfig!,
+          )
+        : document;
     final requestContext = const Context().withEntry(
       HttpLinkHeaders(headers: headers),
     );
     final options = isMutation
         ? MutationOptions(
-            document: gql(document),
+            document: gql(processedDocument),
             variables: variables,
             context: requestContext,
             // noCache: the response is never read from or written to the
@@ -257,7 +379,7 @@ class GraphQLVendureDataSource implements VendureDataSource {
             fetchPolicy: FetchPolicy.noCache,
           )
         : QueryOptions(
-            document: gql(document),
+            document: gql(processedDocument),
             variables: variables,
             context: requestContext,
             fetchPolicy: FetchPolicy.noCache,

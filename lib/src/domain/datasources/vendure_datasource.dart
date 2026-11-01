@@ -54,6 +54,17 @@ abstract class VendureDataSource {
     required T Function(Map<String, dynamic> json) fromJson,
     required String expectedDataType,
   });
+
+  /// Subscribes to a GraphQL subscription document — a stream of decoded
+  /// [T] events (the Vendure live streams: `activeCustomerStream`, …).
+  /// The transport owns the WebSocket lifecycle.
+  Stream<T> subscribe<T>(
+    String document, {
+    required Map<String, dynamic> variables,
+    required Map<String, String> headers,
+    required T Function(Map<String, dynamic> json) fromJson,
+    required String expectedDataType,
+  });
 }
 
 /// The port's single error type: everything the transport can produce —
@@ -80,4 +91,19 @@ class VendureResponse<T> {
 
   final T data;
   final Map<String, String> headers;
+}
+
+/// The raw escape hatch the custom operations ride: execute a document
+/// and get the UNTYPED extracted payload (the caller supplies no decoder).
+/// Same envelope and error path as [VendureDataSource.query].
+abstract class VendureRawDataSource implements VendureDataSource {
+  /// Executes [document] and returns the extracted payload as-is
+  /// (no typed decode) — the custom operations' escape hatch.
+  Future<dynamic> executeRaw(
+    String document, {
+    required Map<String, dynamic> variables,
+    required Map<String, String> headers,
+    required String expectedDataType,
+    required bool isMutation,
+  });
 }

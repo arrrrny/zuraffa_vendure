@@ -155,4 +155,38 @@ class InMemoryVendureDataSource implements VendureDataSource {
   /// stand-in for the HTTP response headers (the auth token header). Tests
   /// seed it: `adapter.responseHeaders['vendure-auth-token'] = token;`.
   final Map<String, String> responseHeaders = {};
+
+  /// The scripted subscription events, in emission order. A subscription
+  /// with no script emits nothing (the stream stays open — the real
+  /// transport's shape).
+  final List<Map<String, dynamic>> subscriptionEvents = [];
+
+  @override
+  Stream<T> subscribe<T>(
+    String document, {
+    required Map<String, dynamic> variables,
+    required Map<String, String> headers,
+    required T Function(Map<String, dynamic> json) fromJson,
+    required String expectedDataType,
+  }) async* {
+    requests.add(
+      VendureRequestRecord(
+        document: document,
+        variables: variables,
+        headers: headers,
+        isMutation: false,
+        expectedDataType: expectedDataType,
+      ),
+    );
+    final scripted = error;
+    if (scripted != null) {
+      throw scripted;
+    }
+    for (final event in subscriptionEvents) {
+      final payload = event[expectedDataType];
+      if (payload is Map<String, dynamic>) {
+        yield fromJson(payload);
+      }
+    }
+  }
 }
