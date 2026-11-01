@@ -264,7 +264,32 @@ class GraphQLVendureDataSource implements VendureDataSource {
       fetchPolicy: FetchPolicy.noCache,
     );
     final result = await client.mutate(options);
-    final data = _handleErrors(result, expectedDataType);
+    // Error validation only — NOT the typed extraction: the auth seam's
+    // contract (ported from the source SDK's
+    // AuthBaseOperations.extractResponseHeaders) is that the session token
+    // rides the response HEADER, so the body is irrelevant on this path.
+    // An absent expectedDataType key (a server that answers the mutation
+    // with only __typename, or an empty data envelope) must NOT throw —
+    // the decoded data is simply null. Only a present-but-wrong-shape
+    // payload is an error.
+    if (result.hasException) {
+      throw VendureDataSourceException(
+        'GraphQL operation failed: ${result.exception.toString()}',
+        cause: result.exception,
+      );
+    }
+    final envelope = result.data;
+    if (envelope == null) {
+      throw const VendureDataSourceException(
+        'No data returned from GraphQL operation',
+      );
+    }
+    final extracted = _extractExpectedData(envelope, expectedDataType);
+    if (extracted is Map && extracted['__typename'] == 'ErrorResult') {
+      throw VendureDataSourceException(
+        extracted['message']?.toString() ?? 'Vendure ErrorResult',
+      );
+    }
     final responseHeaders = <String, String>{};
     final linkContext = result.context.entry<HttpLinkResponseContext>();
     if (linkContext != null && linkContext.headers != null) {
@@ -272,12 +297,22 @@ class GraphQLVendureDataSource implements VendureDataSource {
         linkContext.headers!.map((k, v) => MapEntry(k, v.toString())),
       );
     }
-    if (data is! Map<String, dynamic>) {
+    if (extracted == null) {
+      return VendureResponse<T>(null, responseHeaders);
+    }
+    if (extracted is! Map<String, dynamic>) {
       throw VendureDataSourceException(
-        'Expected a JSON object for $expectedDataType, got ${data.runtimeType}',
+        'Expected a JSON object for $expectedDataType, got ${extracted.runtimeType}',
       );
     }
-    return VendureResponse<T>(fromJson(data), responseHeaders);
+    final normalized = VendureUtils.normalizeGraphQLData(
+      Map<String, dynamic>.from(extracted),
+      convertEnums: false,
+    );
+    return VendureResponse<T>(
+      fromJson(normalized as Map<String, dynamic>),
+      responseHeaders,
+    );
   }
 
   @override

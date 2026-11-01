@@ -217,6 +217,35 @@ void main() {
       expect(rec.variables, {'username': 'me@zuzu.dev', 'password': 'secret'});
       expect(rec.expectedDataType, 'authenticate');
     });
+
+    test('A2: getTokenFirebase captures the header when the body is irrelevant',
+        () async {
+      // Regression lock for the zik_zak issue-265/371 init path: the
+      // firebase token-exchange server answers the mutation with only a
+      // __typename (the session token rides the vendure-auth-token HEADER;
+      // the body is irrelevant). The port's mutateWithHeaders must NOT
+      // throw 'No data returned for expected type: authenticate' — it
+      // returns null data plus the captured headers (the source SDK's
+      // extractResponseHeaders contract).
+      final adapter = InMemoryVendureDataSource(
+        script: const {},
+      );
+      adapter.responseHeaders['vendure-auth-token'] = 'firebase-session-1';
+      final vendure = Vendure.forTesting(
+        endpoint: 'https://shop.example.com/shop-api',
+        dataSource: adapter,
+      );
+
+      final token = await vendure.auth.getTokenFirebase(
+        uid: 'uid-1',
+        jwt: 'jwt-1',
+      );
+
+      expect(token, 'firebase-session-1');
+      final rec = adapter.requests.single;
+      expect(rec.isMutation, isTrue);
+      expect(rec.document, contains('FirebaseAuth'));
+    });
   });
 
   group('the custom group (US2)', () {

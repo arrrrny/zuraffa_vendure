@@ -294,5 +294,31 @@ void main() {
       expect(result, isA<UpdateOrderItemsResult>());
       expect((result as dynamic).id, 'o-9');
     });
+
+    test(
+      'G10: mutateWithHeaders tolerates an absent expectedDataType key '
+      '(the auth seam: token rides the header, body irrelevant)',
+      () async {
+        // The firebase token-exchange server answers the mutation with
+        // only __typename — no authenticate key. The old SDK's
+        // extractResponseHeaders never validated the body; the port's
+        // mutateWithHeaders must return null data + the headers instead
+        // of throwing (zik_zak issue-265/371 init regression lock).
+        final ds = dataSourceFor({
+          'data': {'__typename': 'Mutation'},
+        });
+
+        final response = await ds.mutateWithHeaders<AuthenticationResult>(
+          'mutation { authenticate(input: {firebaseAuth: {uid: "u", jwt: "j"}}) { __typename } }',
+          variables: const {},
+          headers: const {},
+          fromJson: AuthenticationResult.fromJson,
+          expectedDataType: 'authenticate',
+        );
+
+        expect(response.data, isNull);
+        expect(response.headers, isEmpty); // scripted link carries no headers
+      },
+    );
   });
 }

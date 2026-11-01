@@ -180,14 +180,41 @@ class InMemoryVendureDataSource implements VendureDataSource {
     required T Function(Map<String, dynamic> json) fromJson,
     required String expectedDataType,
   }) async {
-    final data = await mutate<T>(
-      document,
-      variables: variables,
-      headers: headers,
-      fromJson: fromJson,
-      expectedDataType: expectedDataType,
+    requests.add(
+      VendureRequestRecord(
+        document: document,
+        variables: variables,
+        headers: headers,
+        isMutation: true,
+        expectedDataType: expectedDataType,
+      ),
     );
-    return VendureResponse<T>(data, Map<String, String>.of(responseHeaders));
+    final scripted = error;
+    if (scripted != null) {
+      throw scripted;
+    }
+    final payload = script[expectedDataType];
+    // The auth seam's contract: the session token rides the response
+    // header, so an UNscripted expectedDataType key (the body-irrelevant
+    // case — a server that answers the mutation with only __typename)
+    // resolves to null data, not a decode of the empty-map default.
+    if (payload == null) {
+      return VendureResponse<T>(null, Map<String, String>.of(responseHeaders));
+    }
+    if (payload is! Map<String, dynamic>) {
+      throw VendureDataSourceException(
+        'Expected a JSON object for $expectedDataType, '
+        'got ${payload.runtimeType}',
+      );
+    }
+    final normalized = VendureUtils.normalizeGraphQLData(
+      Map<String, dynamic>.from(payload),
+      convertEnums: false,
+    );
+    return VendureResponse<T>(
+      fromJson(normalized as Map<String, dynamic>),
+      Map<String, String>.of(responseHeaders),
+    );
   }
 
   /// The headers every [mutateWithHeaders] response carries — the scripted

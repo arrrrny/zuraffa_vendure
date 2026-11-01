@@ -95,10 +95,15 @@ class VendureDataSourceException implements Exception {
 /// (`vendure-auth-token`), not the body, so the auth repository needs the
 /// headers to capture it (ported from the source SDK's
 /// `AuthBaseOperations.extractResponseHeaders`).
+///
+/// [data] is nullable: on this seam the body is irrelevant (the token rides
+/// the header), so a mutation whose expectedDataType key is absent in the
+/// response resolves to null data rather than throwing — matching the
+/// source SDK's header-only extraction.
 class VendureResponse<T> {
   const VendureResponse(this.data, this.headers);
 
-  final T data;
+  final T? data;
   final Map<String, String> headers;
 }
 
