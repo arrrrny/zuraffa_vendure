@@ -1,4 +1,5 @@
 import 'package:json_annotation/json_annotation.dart';
+
 import '../current_user_channel/current_user_channel.dart';
 import '../enums/error_code.dart';
 
@@ -23,7 +24,9 @@ sealed class ResetPasswordResult {
       case 'passwordValidationError':
         return PasswordValidationError.fromJson(json);
       default:
-        throw ArgumentError('Unknown ResetPasswordResult variant: $runtimeType');
+        throw ArgumentError(
+          'Unknown ResetPasswordResult variant: $runtimeType',
+        );
     }
   }
 
@@ -36,13 +39,10 @@ class CurrentUser extends ResetPasswordResult {
   String? id;
   String? identifier;
 
-  CurrentUser({
-    this.channels,
-    this.id,
-    this.identifier,
-  }) : super._();
+  CurrentUser({this.channels, this.id, this.identifier}) : super._();
 
-  factory CurrentUser.fromJson(Map<String, dynamic> json) => _$CurrentUserFromJson(json);
+  factory CurrentUser.fromJson(Map<String, dynamic> json) =>
+      _$CurrentUserFromJson(json);
   @override
   Map<String, dynamic> toJson() => _$CurrentUserToJson(this);
 }
@@ -52,12 +52,10 @@ class NativeAuthStrategyError extends ResetPasswordResult {
   ErrorCode? errorCode;
   String? message;
 
-  NativeAuthStrategyError({
-    this.errorCode,
-    this.message,
-  }) : super._();
+  NativeAuthStrategyError({this.errorCode, this.message}) : super._();
 
-  factory NativeAuthStrategyError.fromJson(Map<String, dynamic> json) => _$NativeAuthStrategyErrorFromJson(json);
+  factory NativeAuthStrategyError.fromJson(Map<String, dynamic> json) =>
+      _$NativeAuthStrategyErrorFromJson(json);
   @override
   Map<String, dynamic> toJson() => _$NativeAuthStrategyErrorToJson(this);
 }
@@ -67,12 +65,10 @@ class NotVerifiedError extends ResetPasswordResult {
   ErrorCode? errorCode;
   String? message;
 
-  NotVerifiedError({
-    this.errorCode,
-    this.message,
-  }) : super._();
+  NotVerifiedError({this.errorCode, this.message}) : super._();
 
-  factory NotVerifiedError.fromJson(Map<String, dynamic> json) => _$NotVerifiedErrorFromJson(json);
+  factory NotVerifiedError.fromJson(Map<String, dynamic> json) =>
+      _$NotVerifiedErrorFromJson(json);
   @override
   Map<String, dynamic> toJson() => _$NotVerifiedErrorToJson(this);
 }
@@ -82,12 +78,10 @@ class PasswordResetTokenExpiredError extends ResetPasswordResult {
   ErrorCode? errorCode;
   String? message;
 
-  PasswordResetTokenExpiredError({
-    this.errorCode,
-    this.message,
-  }) : super._();
+  PasswordResetTokenExpiredError({this.errorCode, this.message}) : super._();
 
-  factory PasswordResetTokenExpiredError.fromJson(Map<String, dynamic> json) => _$PasswordResetTokenExpiredErrorFromJson(json);
+  factory PasswordResetTokenExpiredError.fromJson(Map<String, dynamic> json) =>
+      _$PasswordResetTokenExpiredErrorFromJson(json);
   @override
   Map<String, dynamic> toJson() => _$PasswordResetTokenExpiredErrorToJson(this);
 }
@@ -97,12 +91,10 @@ class PasswordResetTokenInvalidError extends ResetPasswordResult {
   ErrorCode? errorCode;
   String? message;
 
-  PasswordResetTokenInvalidError({
-    this.errorCode,
-    this.message,
-  }) : super._();
+  PasswordResetTokenInvalidError({this.errorCode, this.message}) : super._();
 
-  factory PasswordResetTokenInvalidError.fromJson(Map<String, dynamic> json) => _$PasswordResetTokenInvalidErrorFromJson(json);
+  factory PasswordResetTokenInvalidError.fromJson(Map<String, dynamic> json) =>
+      _$PasswordResetTokenInvalidErrorFromJson(json);
   @override
   Map<String, dynamic> toJson() => _$PasswordResetTokenInvalidErrorToJson(this);
 }
@@ -119,7 +111,8 @@ class PasswordValidationError extends ResetPasswordResult {
     this.validationErrorMessage,
   }) : super._();
 
-  factory PasswordValidationError.fromJson(Map<String, dynamic> json) => _$PasswordValidationErrorFromJson(json);
+  factory PasswordValidationError.fromJson(Map<String, dynamic> json) =>
+      _$PasswordValidationErrorFromJson(json);
   @override
   Map<String, dynamic> toJson() => _$PasswordValidationErrorToJson(this);
 }

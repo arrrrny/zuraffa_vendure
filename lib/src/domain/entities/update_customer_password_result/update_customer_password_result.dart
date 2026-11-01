@@ -1,4 +1,5 @@
 import 'package:json_annotation/json_annotation.dart';
+
 import '../enums/error_code.dart';
 
 part 'update_customer_password_result.g.dart';
@@ -18,7 +19,9 @@ sealed class UpdateCustomerPasswordResult {
       case 'success':
         return Success.fromJson(json);
       default:
-        throw ArgumentError('Unknown UpdateCustomerPasswordResult variant: $runtimeType');
+        throw ArgumentError(
+          'Unknown UpdateCustomerPasswordResult variant: $runtimeType',
+        );
     }
   }
 
@@ -37,7 +40,8 @@ class InvalidCredentialsError extends UpdateCustomerPasswordResult {
     this.message,
   }) : super._();
 
-  factory InvalidCredentialsError.fromJson(Map<String, dynamic> json) => _$InvalidCredentialsErrorFromJson(json);
+  factory InvalidCredentialsError.fromJson(Map<String, dynamic> json) =>
+      _$InvalidCredentialsErrorFromJson(json);
   @override
   Map<String, dynamic> toJson() => _$InvalidCredentialsErrorToJson(this);
 }
@@ -47,12 +51,10 @@ class NativeAuthStrategyError extends UpdateCustomerPasswordResult {
   ErrorCode? errorCode;
   String? message;
 
-  NativeAuthStrategyError({
-    this.errorCode,
-    this.message,
-  }) : super._();
+  NativeAuthStrategyError({this.errorCode, this.message}) : super._();
 
-  factory NativeAuthStrategyError.fromJson(Map<String, dynamic> json) => _$NativeAuthStrategyErrorFromJson(json);
+  factory NativeAuthStrategyError.fromJson(Map<String, dynamic> json) =>
+      _$NativeAuthStrategyErrorFromJson(json);
   @override
   Map<String, dynamic> toJson() => _$NativeAuthStrategyErrorToJson(this);
 }
@@ -69,7 +71,8 @@ class PasswordValidationError extends UpdateCustomerPasswordResult {
     this.validationErrorMessage,
   }) : super._();
 
-  factory PasswordValidationError.fromJson(Map<String, dynamic> json) => _$PasswordValidationErrorFromJson(json);
+  factory PasswordValidationError.fromJson(Map<String, dynamic> json) =>
+      _$PasswordValidationErrorFromJson(json);
   @override
   Map<String, dynamic> toJson() => _$PasswordValidationErrorToJson(this);
 }
@@ -78,11 +81,10 @@ class PasswordValidationError extends UpdateCustomerPasswordResult {
 class Success extends UpdateCustomerPasswordResult {
   bool? success;
 
-  Success({
-    this.success,
-  }) : super._();
+  Success({this.success}) : super._();
 
-  factory Success.fromJson(Map<String, dynamic> json) => _$SuccessFromJson(json);
+  factory Success.fromJson(Map<String, dynamic> json) =>
+      _$SuccessFromJson(json);
   @override
   Map<String, dynamic> toJson() => _$SuccessToJson(this);
 }

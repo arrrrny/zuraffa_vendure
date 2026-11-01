@@ -1,4 +1,5 @@
 import 'package:json_annotation/json_annotation.dart';
+
 import '../current_user_channel/current_user_channel.dart';
 import '../enums/error_code.dart';
 
@@ -25,7 +26,9 @@ sealed class VerifyCustomerAccountResult {
       case 'verificationTokenInvalidError':
         return VerificationTokenInvalidError.fromJson(json);
       default:
-        throw ArgumentError('Unknown VerifyCustomerAccountResult variant: $runtimeType');
+        throw ArgumentError(
+          'Unknown VerifyCustomerAccountResult variant: $runtimeType',
+        );
     }
   }
 
@@ -38,13 +41,10 @@ class CurrentUser extends VerifyCustomerAccountResult {
   String? id;
   String? identifier;
 
-  CurrentUser({
-    this.channels,
-    this.id,
-    this.identifier,
-  }) : super._();
+  CurrentUser({this.channels, this.id, this.identifier}) : super._();
 
-  factory CurrentUser.fromJson(Map<String, dynamic> json) => _$CurrentUserFromJson(json);
+  factory CurrentUser.fromJson(Map<String, dynamic> json) =>
+      _$CurrentUserFromJson(json);
   @override
   Map<String, dynamic> toJson() => _$CurrentUserToJson(this);
 }
@@ -54,12 +54,10 @@ class MissingPasswordError extends VerifyCustomerAccountResult {
   ErrorCode? errorCode;
   String? message;
 
-  MissingPasswordError({
-    this.errorCode,
-    this.message,
-  }) : super._();
+  MissingPasswordError({this.errorCode, this.message}) : super._();
 
-  factory MissingPasswordError.fromJson(Map<String, dynamic> json) => _$MissingPasswordErrorFromJson(json);
+  factory MissingPasswordError.fromJson(Map<String, dynamic> json) =>
+      _$MissingPasswordErrorFromJson(json);
   @override
   Map<String, dynamic> toJson() => _$MissingPasswordErrorToJson(this);
 }
@@ -69,12 +67,10 @@ class NativeAuthStrategyError extends VerifyCustomerAccountResult {
   ErrorCode? errorCode;
   String? message;
 
-  NativeAuthStrategyError({
-    this.errorCode,
-    this.message,
-  }) : super._();
+  NativeAuthStrategyError({this.errorCode, this.message}) : super._();
 
-  factory NativeAuthStrategyError.fromJson(Map<String, dynamic> json) => _$NativeAuthStrategyErrorFromJson(json);
+  factory NativeAuthStrategyError.fromJson(Map<String, dynamic> json) =>
+      _$NativeAuthStrategyErrorFromJson(json);
   @override
   Map<String, dynamic> toJson() => _$NativeAuthStrategyErrorToJson(this);
 }
@@ -84,12 +80,10 @@ class PasswordAlreadySetError extends VerifyCustomerAccountResult {
   ErrorCode? errorCode;
   String? message;
 
-  PasswordAlreadySetError({
-    this.errorCode,
-    this.message,
-  }) : super._();
+  PasswordAlreadySetError({this.errorCode, this.message}) : super._();
 
-  factory PasswordAlreadySetError.fromJson(Map<String, dynamic> json) => _$PasswordAlreadySetErrorFromJson(json);
+  factory PasswordAlreadySetError.fromJson(Map<String, dynamic> json) =>
+      _$PasswordAlreadySetErrorFromJson(json);
   @override
   Map<String, dynamic> toJson() => _$PasswordAlreadySetErrorToJson(this);
 }
@@ -106,7 +100,8 @@ class PasswordValidationError extends VerifyCustomerAccountResult {
     this.validationErrorMessage,
   }) : super._();
 
-  factory PasswordValidationError.fromJson(Map<String, dynamic> json) => _$PasswordValidationErrorFromJson(json);
+  factory PasswordValidationError.fromJson(Map<String, dynamic> json) =>
+      _$PasswordValidationErrorFromJson(json);
   @override
   Map<String, dynamic> toJson() => _$PasswordValidationErrorToJson(this);
 }
@@ -116,12 +111,10 @@ class VerificationTokenExpiredError extends VerifyCustomerAccountResult {
   ErrorCode? errorCode;
   String? message;
 
-  VerificationTokenExpiredError({
-    this.errorCode,
-    this.message,
-  }) : super._();
+  VerificationTokenExpiredError({this.errorCode, this.message}) : super._();
 
-  factory VerificationTokenExpiredError.fromJson(Map<String, dynamic> json) => _$VerificationTokenExpiredErrorFromJson(json);
+  factory VerificationTokenExpiredError.fromJson(Map<String, dynamic> json) =>
+      _$VerificationTokenExpiredErrorFromJson(json);
   @override
   Map<String, dynamic> toJson() => _$VerificationTokenExpiredErrorToJson(this);
 }
@@ -131,12 +124,10 @@ class VerificationTokenInvalidError extends VerifyCustomerAccountResult {
   ErrorCode? errorCode;
   String? message;
 
-  VerificationTokenInvalidError({
-    this.errorCode,
-    this.message,
-  }) : super._();
+  VerificationTokenInvalidError({this.errorCode, this.message}) : super._();
 
-  factory VerificationTokenInvalidError.fromJson(Map<String, dynamic> json) => _$VerificationTokenInvalidErrorFromJson(json);
+  factory VerificationTokenInvalidError.fromJson(Map<String, dynamic> json) =>
+      _$VerificationTokenInvalidErrorFromJson(json);
   @override
   Map<String, dynamic> toJson() => _$VerificationTokenInvalidErrorToJson(this);
 }

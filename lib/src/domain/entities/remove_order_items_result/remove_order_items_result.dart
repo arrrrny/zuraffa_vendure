@@ -1,4 +1,5 @@
 import 'package:json_annotation/json_annotation.dart';
+
 import '../discount/discount.dart';
 import '../fulfillment/fulfillment.dart';
 import '../history_entry_list/history_entry_list.dart';
@@ -26,7 +27,9 @@ sealed class RemoveOrderItemsResult {
       case 'orderModificationError':
         return OrderModificationError.fromJson(json);
       default:
-        throw ArgumentError('Unknown RemoveOrderItemsResult variant: $runtimeType');
+        throw ArgumentError(
+          'Unknown RemoveOrderItemsResult variant: $runtimeType',
+        );
     }
   }
 
@@ -107,12 +110,10 @@ class OrderModificationError extends RemoveOrderItemsResult {
   ErrorCode? errorCode;
   String? message;
 
-  OrderModificationError({
-    this.errorCode,
-    this.message,
-  }) : super._();
+  OrderModificationError({this.errorCode, this.message}) : super._();
 
-  factory OrderModificationError.fromJson(Map<String, dynamic> json) => _$OrderModificationErrorFromJson(json);
+  factory OrderModificationError.fromJson(Map<String, dynamic> json) =>
+      _$OrderModificationErrorFromJson(json);
   @override
   Map<String, dynamic> toJson() => _$OrderModificationErrorToJson(this);
 }

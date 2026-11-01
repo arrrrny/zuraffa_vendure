@@ -1,4 +1,5 @@
 import 'package:json_annotation/json_annotation.dart';
+
 import '../customer/customer.dart';
 import '../discount/discount.dart';
 import '../fulfillment/fulfillment.dart';
@@ -33,7 +34,9 @@ sealed class SetCustomerForOrderResult {
       case 'order':
         return Order.fromJson(json);
       default:
-        throw ArgumentError('Unknown SetCustomerForOrderResult variant: $runtimeType');
+        throw ArgumentError(
+          'Unknown SetCustomerForOrderResult variant: $runtimeType',
+        );
     }
   }
 
@@ -45,12 +48,10 @@ class AlreadyLoggedInError extends SetCustomerForOrderResult {
   ErrorCode? errorCode;
   String? message;
 
-  AlreadyLoggedInError({
-    this.errorCode,
-    this.message,
-  }) : super._();
+  AlreadyLoggedInError({this.errorCode, this.message}) : super._();
 
-  factory AlreadyLoggedInError.fromJson(Map<String, dynamic> json) => _$AlreadyLoggedInErrorFromJson(json);
+  factory AlreadyLoggedInError.fromJson(Map<String, dynamic> json) =>
+      _$AlreadyLoggedInErrorFromJson(json);
   @override
   Map<String, dynamic> toJson() => _$AlreadyLoggedInErrorToJson(this);
 }
@@ -60,12 +61,10 @@ class EmailAddressConflictError extends SetCustomerForOrderResult {
   ErrorCode? errorCode;
   String? message;
 
-  EmailAddressConflictError({
-    this.errorCode,
-    this.message,
-  }) : super._();
+  EmailAddressConflictError({this.errorCode, this.message}) : super._();
 
-  factory EmailAddressConflictError.fromJson(Map<String, dynamic> json) => _$EmailAddressConflictErrorFromJson(json);
+  factory EmailAddressConflictError.fromJson(Map<String, dynamic> json) =>
+      _$EmailAddressConflictErrorFromJson(json);
   @override
   Map<String, dynamic> toJson() => _$EmailAddressConflictErrorToJson(this);
 }
@@ -76,13 +75,11 @@ class GuestCheckoutError extends SetCustomerForOrderResult {
   String? errorDetail;
   String? message;
 
-  GuestCheckoutError({
-    this.errorCode,
-    this.errorDetail,
-    this.message,
-  }) : super._();
+  GuestCheckoutError({this.errorCode, this.errorDetail, this.message})
+    : super._();
 
-  factory GuestCheckoutError.fromJson(Map<String, dynamic> json) => _$GuestCheckoutErrorFromJson(json);
+  factory GuestCheckoutError.fromJson(Map<String, dynamic> json) =>
+      _$GuestCheckoutErrorFromJson(json);
   @override
   Map<String, dynamic> toJson() => _$GuestCheckoutErrorToJson(this);
 }
@@ -92,12 +89,10 @@ class NoActiveOrderError extends SetCustomerForOrderResult {
   ErrorCode? errorCode;
   String? message;
 
-  NoActiveOrderError({
-    this.errorCode,
-    this.message,
-  }) : super._();
+  NoActiveOrderError({this.errorCode, this.message}) : super._();
 
-  factory NoActiveOrderError.fromJson(Map<String, dynamic> json) => _$NoActiveOrderErrorFromJson(json);
+  factory NoActiveOrderError.fromJson(Map<String, dynamic> json) =>
+      _$NoActiveOrderErrorFromJson(json);
   @override
   Map<String, dynamic> toJson() => _$NoActiveOrderErrorToJson(this);
 }

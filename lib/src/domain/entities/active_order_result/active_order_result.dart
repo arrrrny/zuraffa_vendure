@@ -1,4 +1,5 @@
 import 'package:json_annotation/json_annotation.dart';
+
 import '../discount/discount.dart';
 import '../fulfillment/fulfillment.dart';
 import '../history_entry_list/history_entry_list.dart';
@@ -38,12 +39,10 @@ class NoActiveOrderError extends ActiveOrderResult {
   ErrorCode? errorCode;
   String? message;
 
-  NoActiveOrderError({
-    this.errorCode,
-    this.message,
-  }) : super._();
+  NoActiveOrderError({this.errorCode, this.message}) : super._();
 
-  factory NoActiveOrderError.fromJson(Map<String, dynamic> json) => _$NoActiveOrderErrorFromJson(json);
+  factory NoActiveOrderError.fromJson(Map<String, dynamic> json) =>
+      _$NoActiveOrderErrorFromJson(json);
   @override
   Map<String, dynamic> toJson() => _$NoActiveOrderErrorToJson(this);
 }

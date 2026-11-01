@@ -214,9 +214,7 @@ class GraphQLVendureDataSource implements VendureDataSource {
     final options = MutationOptions(
       document: gql(document),
       variables: variables,
-      context: const Context().withEntry(
-        HttpLinkHeaders(headers: headers),
-      ),
+      context: const Context().withEntry(HttpLinkHeaders(headers: headers)),
       fetchPolicy: FetchPolicy.noCache,
     );
     final result = await client.mutate(options);

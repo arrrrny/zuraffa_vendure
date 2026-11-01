@@ -1,4 +1,5 @@
 import 'package:json_annotation/json_annotation.dart';
+
 import '../discount/discount.dart';
 import '../fulfillment/fulfillment.dart';
 import '../history_entry_list/history_entry_list.dart';
@@ -36,7 +37,9 @@ sealed class AddPaymentToOrderResult {
       case 'paymentFailedError':
         return PaymentFailedError.fromJson(json);
       default:
-        throw ArgumentError('Unknown AddPaymentToOrderResult variant: $runtimeType');
+        throw ArgumentError(
+          'Unknown AddPaymentToOrderResult variant: $runtimeType',
+        );
     }
   }
 
@@ -55,7 +58,8 @@ class IneligiblePaymentMethodError extends AddPaymentToOrderResult {
     this.message,
   }) : super._();
 
-  factory IneligiblePaymentMethodError.fromJson(Map<String, dynamic> json) => _$IneligiblePaymentMethodErrorFromJson(json);
+  factory IneligiblePaymentMethodError.fromJson(Map<String, dynamic> json) =>
+      _$IneligiblePaymentMethodErrorFromJson(json);
   @override
   Map<String, dynamic> toJson() => _$IneligiblePaymentMethodErrorToJson(this);
 }
@@ -65,12 +69,10 @@ class NoActiveOrderError extends AddPaymentToOrderResult {
   ErrorCode? errorCode;
   String? message;
 
-  NoActiveOrderError({
-    this.errorCode,
-    this.message,
-  }) : super._();
+  NoActiveOrderError({this.errorCode, this.message}) : super._();
 
-  factory NoActiveOrderError.fromJson(Map<String, dynamic> json) => _$NoActiveOrderErrorFromJson(json);
+  factory NoActiveOrderError.fromJson(Map<String, dynamic> json) =>
+      _$NoActiveOrderErrorFromJson(json);
   @override
   Map<String, dynamic> toJson() => _$NoActiveOrderErrorToJson(this);
 }
@@ -149,12 +151,10 @@ class OrderPaymentStateError extends AddPaymentToOrderResult {
   ErrorCode? errorCode;
   String? message;
 
-  OrderPaymentStateError({
-    this.errorCode,
-    this.message,
-  }) : super._();
+  OrderPaymentStateError({this.errorCode, this.message}) : super._();
 
-  factory OrderPaymentStateError.fromJson(Map<String, dynamic> json) => _$OrderPaymentStateErrorFromJson(json);
+  factory OrderPaymentStateError.fromJson(Map<String, dynamic> json) =>
+      _$OrderPaymentStateErrorFromJson(json);
   @override
   Map<String, dynamic> toJson() => _$OrderPaymentStateErrorToJson(this);
 }
@@ -175,7 +175,8 @@ class OrderStateTransitionError extends AddPaymentToOrderResult {
     this.transitionError,
   }) : super._();
 
-  factory OrderStateTransitionError.fromJson(Map<String, dynamic> json) => _$OrderStateTransitionErrorFromJson(json);
+  factory OrderStateTransitionError.fromJson(Map<String, dynamic> json) =>
+      _$OrderStateTransitionErrorFromJson(json);
   @override
   Map<String, dynamic> toJson() => _$OrderStateTransitionErrorToJson(this);
 }
@@ -186,13 +187,11 @@ class PaymentDeclinedError extends AddPaymentToOrderResult {
   String? message;
   String? paymentErrorMessage;
 
-  PaymentDeclinedError({
-    this.errorCode,
-    this.message,
-    this.paymentErrorMessage,
-  }) : super._();
+  PaymentDeclinedError({this.errorCode, this.message, this.paymentErrorMessage})
+    : super._();
 
-  factory PaymentDeclinedError.fromJson(Map<String, dynamic> json) => _$PaymentDeclinedErrorFromJson(json);
+  factory PaymentDeclinedError.fromJson(Map<String, dynamic> json) =>
+      _$PaymentDeclinedErrorFromJson(json);
   @override
   Map<String, dynamic> toJson() => _$PaymentDeclinedErrorToJson(this);
 }
@@ -203,13 +202,11 @@ class PaymentFailedError extends AddPaymentToOrderResult {
   String? message;
   String? paymentErrorMessage;
 
-  PaymentFailedError({
-    this.errorCode,
-    this.message,
-    this.paymentErrorMessage,
-  }) : super._();
+  PaymentFailedError({this.errorCode, this.message, this.paymentErrorMessage})
+    : super._();
 
-  factory PaymentFailedError.fromJson(Map<String, dynamic> json) => _$PaymentFailedErrorFromJson(json);
+  factory PaymentFailedError.fromJson(Map<String, dynamic> json) =>
+      _$PaymentFailedErrorFromJson(json);
   @override
   Map<String, dynamic> toJson() => _$PaymentFailedErrorToJson(this);
 }

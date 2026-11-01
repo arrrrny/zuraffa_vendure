@@ -1,4 +1,5 @@
 import 'package:json_annotation/json_annotation.dart';
+
 import '../discount/discount.dart';
 import '../fulfillment/fulfillment.dart';
 import '../history_entry_list/history_entry_list.dart';
@@ -32,7 +33,9 @@ sealed class UpdateOrderItemsResult {
       case 'orderModificationError':
         return OrderModificationError.fromJson(json);
       default:
-        throw ArgumentError('Unknown UpdateOrderItemsResult variant: $runtimeType');
+        throw ArgumentError(
+          'Unknown UpdateOrderItemsResult variant: $runtimeType',
+        );
     }
   }
 
@@ -53,7 +56,8 @@ class InsufficientStockError extends UpdateOrderItemsResult {
     this.quantityAvailable,
   }) : super._();
 
-  factory InsufficientStockError.fromJson(Map<String, dynamic> json) => _$InsufficientStockErrorFromJson(json);
+  factory InsufficientStockError.fromJson(Map<String, dynamic> json) =>
+      _$InsufficientStockErrorFromJson(json);
   @override
   Map<String, dynamic> toJson() => _$InsufficientStockErrorToJson(this);
 }
@@ -63,12 +67,10 @@ class NegativeQuantityError extends UpdateOrderItemsResult {
   ErrorCode? errorCode;
   String? message;
 
-  NegativeQuantityError({
-    this.errorCode,
-    this.message,
-  }) : super._();
+  NegativeQuantityError({this.errorCode, this.message}) : super._();
 
-  factory NegativeQuantityError.fromJson(Map<String, dynamic> json) => _$NegativeQuantityErrorFromJson(json);
+  factory NegativeQuantityError.fromJson(Map<String, dynamic> json) =>
+      _$NegativeQuantityErrorFromJson(json);
   @override
   Map<String, dynamic> toJson() => _$NegativeQuantityErrorToJson(this);
 }
@@ -148,13 +150,10 @@ class OrderLimitError extends UpdateOrderItemsResult {
   int? maxItems;
   String? message;
 
-  OrderLimitError({
-    this.errorCode,
-    this.maxItems,
-    this.message,
-  }) : super._();
+  OrderLimitError({this.errorCode, this.maxItems, this.message}) : super._();
 
-  factory OrderLimitError.fromJson(Map<String, dynamic> json) => _$OrderLimitErrorFromJson(json);
+  factory OrderLimitError.fromJson(Map<String, dynamic> json) =>
+      _$OrderLimitErrorFromJson(json);
   @override
   Map<String, dynamic> toJson() => _$OrderLimitErrorToJson(this);
 }
@@ -164,12 +163,10 @@ class OrderModificationError extends UpdateOrderItemsResult {
   ErrorCode? errorCode;
   String? message;
 
-  OrderModificationError({
-    this.errorCode,
-    this.message,
-  }) : super._();
+  OrderModificationError({this.errorCode, this.message}) : super._();
 
-  factory OrderModificationError.fromJson(Map<String, dynamic> json) => _$OrderModificationErrorFromJson(json);
+  factory OrderModificationError.fromJson(Map<String, dynamic> json) =>
+      _$OrderModificationErrorFromJson(json);
   @override
   Map<String, dynamic> toJson() => _$OrderModificationErrorToJson(this);
 }

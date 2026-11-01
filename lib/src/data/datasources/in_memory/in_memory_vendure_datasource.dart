@@ -111,13 +111,15 @@ class InMemoryVendureDataSource implements VendureDataSource {
     T Function(Map<String, dynamic> json)? fromJson,
     required String expectedDataType,
   }) async {
-    requests.add(VendureRequestRecord(
-      document: document,
-      variables: variables,
-      headers: headers,
-      isMutation: false,
-      expectedDataType: expectedDataType,
-    ));
+    requests.add(
+      VendureRequestRecord(
+        document: document,
+        variables: variables,
+        headers: headers,
+        isMutation: false,
+        expectedDataType: expectedDataType,
+      ),
+    );
     final scripted = error;
     if (scripted != null) {
       throw scripted;

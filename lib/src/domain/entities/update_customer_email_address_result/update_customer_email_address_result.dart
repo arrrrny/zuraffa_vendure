@@ -1,4 +1,5 @@
 import 'package:json_annotation/json_annotation.dart';
+
 import '../enums/error_code.dart';
 
 part 'update_customer_email_address_result.g.dart';
@@ -18,7 +19,9 @@ sealed class UpdateCustomerEmailAddressResult {
       case 'success':
         return Success.fromJson(json);
       default:
-        throw ArgumentError('Unknown UpdateCustomerEmailAddressResult variant: $runtimeType');
+        throw ArgumentError(
+          'Unknown UpdateCustomerEmailAddressResult variant: $runtimeType',
+        );
     }
   }
 
@@ -26,33 +29,35 @@ sealed class UpdateCustomerEmailAddressResult {
 }
 
 @JsonSerializable(explicitToJson: true)
-class IdentifierChangeTokenExpiredError extends UpdateCustomerEmailAddressResult {
+class IdentifierChangeTokenExpiredError
+    extends UpdateCustomerEmailAddressResult {
   ErrorCode? errorCode;
   String? message;
 
-  IdentifierChangeTokenExpiredError({
-    this.errorCode,
-    this.message,
-  }) : super._();
+  IdentifierChangeTokenExpiredError({this.errorCode, this.message}) : super._();
 
-  factory IdentifierChangeTokenExpiredError.fromJson(Map<String, dynamic> json) => _$IdentifierChangeTokenExpiredErrorFromJson(json);
+  factory IdentifierChangeTokenExpiredError.fromJson(
+    Map<String, dynamic> json,
+  ) => _$IdentifierChangeTokenExpiredErrorFromJson(json);
   @override
-  Map<String, dynamic> toJson() => _$IdentifierChangeTokenExpiredErrorToJson(this);
+  Map<String, dynamic> toJson() =>
+      _$IdentifierChangeTokenExpiredErrorToJson(this);
 }
 
 @JsonSerializable(explicitToJson: true)
-class IdentifierChangeTokenInvalidError extends UpdateCustomerEmailAddressResult {
+class IdentifierChangeTokenInvalidError
+    extends UpdateCustomerEmailAddressResult {
   ErrorCode? errorCode;
   String? message;
 
-  IdentifierChangeTokenInvalidError({
-    this.errorCode,
-    this.message,
-  }) : super._();
+  IdentifierChangeTokenInvalidError({this.errorCode, this.message}) : super._();
 
-  factory IdentifierChangeTokenInvalidError.fromJson(Map<String, dynamic> json) => _$IdentifierChangeTokenInvalidErrorFromJson(json);
+  factory IdentifierChangeTokenInvalidError.fromJson(
+    Map<String, dynamic> json,
+  ) => _$IdentifierChangeTokenInvalidErrorFromJson(json);
   @override
-  Map<String, dynamic> toJson() => _$IdentifierChangeTokenInvalidErrorToJson(this);
+  Map<String, dynamic> toJson() =>
+      _$IdentifierChangeTokenInvalidErrorToJson(this);
 }
 
 @JsonSerializable(explicitToJson: true)
@@ -60,12 +65,10 @@ class NativeAuthStrategyError extends UpdateCustomerEmailAddressResult {
   ErrorCode? errorCode;
   String? message;
 
-  NativeAuthStrategyError({
-    this.errorCode,
-    this.message,
-  }) : super._();
+  NativeAuthStrategyError({this.errorCode, this.message}) : super._();
 
-  factory NativeAuthStrategyError.fromJson(Map<String, dynamic> json) => _$NativeAuthStrategyErrorFromJson(json);
+  factory NativeAuthStrategyError.fromJson(Map<String, dynamic> json) =>
+      _$NativeAuthStrategyErrorFromJson(json);
   @override
   Map<String, dynamic> toJson() => _$NativeAuthStrategyErrorToJson(this);
 }
@@ -74,11 +77,10 @@ class NativeAuthStrategyError extends UpdateCustomerEmailAddressResult {
 class Success extends UpdateCustomerEmailAddressResult {
   bool? success;
 
-  Success({
-    this.success,
-  }) : super._();
+  Success({this.success}) : super._();
 
-  factory Success.fromJson(Map<String, dynamic> json) => _$SuccessFromJson(json);
+  factory Success.fromJson(Map<String, dynamic> json) =>
+      _$SuccessFromJson(json);
   @override
   Map<String, dynamic> toJson() => _$SuccessToJson(this);
 }

@@ -1,4 +1,5 @@
 import 'package:json_annotation/json_annotation.dart';
+
 import '../discount/discount.dart';
 import '../fulfillment/fulfillment.dart';
 import '../history_entry_list/history_entry_list.dart';
@@ -30,7 +31,9 @@ sealed class ApplyCouponCodeResult {
       case 'order':
         return Order.fromJson(json);
       default:
-        throw ArgumentError('Unknown ApplyCouponCodeResult variant: $runtimeType');
+        throw ArgumentError(
+          'Unknown ApplyCouponCodeResult variant: $runtimeType',
+        );
     }
   }
 
@@ -43,13 +46,11 @@ class CouponCodeExpiredError extends ApplyCouponCodeResult {
   ErrorCode? errorCode;
   String? message;
 
-  CouponCodeExpiredError({
-    this.couponCode,
-    this.errorCode,
-    this.message,
-  }) : super._();
+  CouponCodeExpiredError({this.couponCode, this.errorCode, this.message})
+    : super._();
 
-  factory CouponCodeExpiredError.fromJson(Map<String, dynamic> json) => _$CouponCodeExpiredErrorFromJson(json);
+  factory CouponCodeExpiredError.fromJson(Map<String, dynamic> json) =>
+      _$CouponCodeExpiredErrorFromJson(json);
   @override
   Map<String, dynamic> toJson() => _$CouponCodeExpiredErrorToJson(this);
 }
@@ -60,13 +61,11 @@ class CouponCodeInvalidError extends ApplyCouponCodeResult {
   ErrorCode? errorCode;
   String? message;
 
-  CouponCodeInvalidError({
-    this.couponCode,
-    this.errorCode,
-    this.message,
-  }) : super._();
+  CouponCodeInvalidError({this.couponCode, this.errorCode, this.message})
+    : super._();
 
-  factory CouponCodeInvalidError.fromJson(Map<String, dynamic> json) => _$CouponCodeInvalidErrorFromJson(json);
+  factory CouponCodeInvalidError.fromJson(Map<String, dynamic> json) =>
+      _$CouponCodeInvalidErrorFromJson(json);
   @override
   Map<String, dynamic> toJson() => _$CouponCodeInvalidErrorToJson(this);
 }
@@ -85,7 +84,8 @@ class CouponCodeLimitError extends ApplyCouponCodeResult {
     this.message,
   }) : super._();
 
-  factory CouponCodeLimitError.fromJson(Map<String, dynamic> json) => _$CouponCodeLimitErrorFromJson(json);
+  factory CouponCodeLimitError.fromJson(Map<String, dynamic> json) =>
+      _$CouponCodeLimitErrorFromJson(json);
   @override
   Map<String, dynamic> toJson() => _$CouponCodeLimitErrorToJson(this);
 }

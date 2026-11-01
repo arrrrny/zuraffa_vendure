@@ -62,7 +62,7 @@ abstract class AuthRepository {
 
   /// Request an email address change (sends verification to the new address).
   Future<RequestUpdateCustomerEmailAddressResult>
-      requestUpdateCustomerEmailAddress({
+  requestUpdateCustomerEmailAddress({
     required String password,
     required String newEmailAddress,
   });

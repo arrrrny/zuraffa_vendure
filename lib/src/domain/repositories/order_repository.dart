@@ -37,9 +37,7 @@ abstract class OrderRepository {
 
   Future<List<String>> getNextOrderStates();
 
-  Future<RemoveOrderItemsResult> removeOrderLine({
-    required String orderLineId,
-  });
+  Future<RemoveOrderItemsResult> removeOrderLine({required String orderLineId});
 
   Future<RemoveOrderItemsResult> removeAllOrderLines();
 
@@ -48,9 +46,7 @@ abstract class OrderRepository {
     required int quantity,
   });
 
-  Future<ApplyCouponCodeResult> applyCouponCode({
-    required String couponCode,
-  });
+  Future<ApplyCouponCodeResult> applyCouponCode({required String couponCode});
 
   Future<Order> removeCouponCode({required String couponCode});
 

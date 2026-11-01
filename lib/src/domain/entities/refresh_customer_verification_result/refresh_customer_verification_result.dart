@@ -1,4 +1,5 @@
 import 'package:json_annotation/json_annotation.dart';
+
 import '../enums/error_code.dart';
 
 part 'refresh_customer_verification_result.g.dart';
@@ -6,7 +7,9 @@ part 'refresh_customer_verification_result.g.dart';
 sealed class RefreshCustomerVerificationResult {
   const RefreshCustomerVerificationResult._();
 
-  factory RefreshCustomerVerificationResult.fromJson(Map<String, dynamic> json) {
+  factory RefreshCustomerVerificationResult.fromJson(
+    Map<String, dynamic> json,
+  ) {
     final runtimeType = json['runtimeType'] as String?;
     switch (runtimeType) {
       case 'nativeAuthStrategyError':
@@ -14,7 +17,9 @@ sealed class RefreshCustomerVerificationResult {
       case 'success':
         return Success.fromJson(json);
       default:
-        throw ArgumentError('Unknown RefreshCustomerVerificationResult variant: $runtimeType');
+        throw ArgumentError(
+          'Unknown RefreshCustomerVerificationResult variant: $runtimeType',
+        );
     }
   }
 
@@ -26,12 +31,10 @@ class NativeAuthStrategyError extends RefreshCustomerVerificationResult {
   ErrorCode? errorCode;
   String? message;
 
-  NativeAuthStrategyError({
-    this.errorCode,
-    this.message,
-  }) : super._();
+  NativeAuthStrategyError({this.errorCode, this.message}) : super._();
 
-  factory NativeAuthStrategyError.fromJson(Map<String, dynamic> json) => _$NativeAuthStrategyErrorFromJson(json);
+  factory NativeAuthStrategyError.fromJson(Map<String, dynamic> json) =>
+      _$NativeAuthStrategyErrorFromJson(json);
   @override
   Map<String, dynamic> toJson() => _$NativeAuthStrategyErrorToJson(this);
 }
@@ -40,11 +43,10 @@ class NativeAuthStrategyError extends RefreshCustomerVerificationResult {
 class Success extends RefreshCustomerVerificationResult {
   bool? success;
 
-  Success({
-    this.success,
-  }) : super._();
+  Success({this.success}) : super._();
 
-  factory Success.fromJson(Map<String, dynamic> json) => _$SuccessFromJson(json);
+  factory Success.fromJson(Map<String, dynamic> json) =>
+      _$SuccessFromJson(json);
   @override
   Map<String, dynamic> toJson() => _$SuccessToJson(this);
 }

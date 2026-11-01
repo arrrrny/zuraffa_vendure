@@ -202,20 +202,37 @@ export 'enums/permission.dart';
 export 'enums/sort_order.dart';
 export 'search_result_price/search_result_price.dart' show SearchResultPrice;
 export 'active_order_result/active_order_result.dart' show ActiveOrderResult;
-export 'add_payment_to_order_result/add_payment_to_order_result.dart' show AddPaymentToOrderResult;
-export 'apply_coupon_code_result/apply_coupon_code_result.dart' show ApplyCouponCodeResult;
-export 'authentication_result/authentication_result.dart' show AuthenticationResult;
-export 'native_authentication_result/native_authentication_result.dart' show NativeAuthenticationResult;
-export 'refresh_customer_verification_result/refresh_customer_verification_result.dart' show RefreshCustomerVerificationResult;
-export 'register_customer_account_result/register_customer_account_result.dart' show RegisterCustomerAccountResult;
-export 'remove_order_items_result/remove_order_items_result.dart' show RemoveOrderItemsResult;
-export 'request_password_reset_result/request_password_reset_result.dart' show RequestPasswordResetResult;
-export 'request_update_customer_email_address_result/request_update_customer_email_address_result.dart' show RequestUpdateCustomerEmailAddressResult;
-export 'reset_password_result/reset_password_result.dart' show ResetPasswordResult;
-export 'set_customer_for_order_result/set_customer_for_order_result.dart' show SetCustomerForOrderResult;
-export 'set_order_shipping_method_result/set_order_shipping_method_result.dart' show SetOrderShippingMethodResult;
-export 'transition_order_to_state_result/transition_order_to_state_result.dart' show TransitionOrderToStateResult;
-export 'update_customer_email_address_result/update_customer_email_address_result.dart' show UpdateCustomerEmailAddressResult;
-export 'update_customer_password_result/update_customer_password_result.dart' show UpdateCustomerPasswordResult;
-export 'update_order_items_result/update_order_items_result.dart' show UpdateOrderItemsResult;
-export 'verify_customer_account_result/verify_customer_account_result.dart' show VerifyCustomerAccountResult;
+export 'add_payment_to_order_result/add_payment_to_order_result.dart'
+    show AddPaymentToOrderResult;
+export 'apply_coupon_code_result/apply_coupon_code_result.dart'
+    show ApplyCouponCodeResult;
+export 'authentication_result/authentication_result.dart'
+    show AuthenticationResult;
+export 'native_authentication_result/native_authentication_result.dart'
+    show NativeAuthenticationResult;
+export 'refresh_customer_verification_result/refresh_customer_verification_result.dart'
+    show RefreshCustomerVerificationResult;
+export 'register_customer_account_result/register_customer_account_result.dart'
+    show RegisterCustomerAccountResult;
+export 'remove_order_items_result/remove_order_items_result.dart'
+    show RemoveOrderItemsResult;
+export 'request_password_reset_result/request_password_reset_result.dart'
+    show RequestPasswordResetResult;
+export 'request_update_customer_email_address_result/request_update_customer_email_address_result.dart'
+    show RequestUpdateCustomerEmailAddressResult;
+export 'reset_password_result/reset_password_result.dart'
+    show ResetPasswordResult;
+export 'set_customer_for_order_result/set_customer_for_order_result.dart'
+    show SetCustomerForOrderResult;
+export 'set_order_shipping_method_result/set_order_shipping_method_result.dart'
+    show SetOrderShippingMethodResult;
+export 'transition_order_to_state_result/transition_order_to_state_result.dart'
+    show TransitionOrderToStateResult;
+export 'update_customer_email_address_result/update_customer_email_address_result.dart'
+    show UpdateCustomerEmailAddressResult;
+export 'update_customer_password_result/update_customer_password_result.dart'
+    show UpdateCustomerPasswordResult;
+export 'update_order_items_result/update_order_items_result.dart'
+    show UpdateOrderItemsResult;
+export 'verify_customer_account_result/verify_customer_account_result.dart'
+    show VerifyCustomerAccountResult;

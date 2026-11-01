@@ -1,4 +1,5 @@
 import 'package:json_annotation/json_annotation.dart';
+
 import '../discount/discount.dart';
 import '../fulfillment/fulfillment.dart';
 import '../history_entry_list/history_entry_list.dart';
@@ -30,7 +31,9 @@ sealed class SetOrderShippingMethodResult {
       case 'orderModificationError':
         return OrderModificationError.fromJson(json);
       default:
-        throw ArgumentError('Unknown SetOrderShippingMethodResult variant: $runtimeType');
+        throw ArgumentError(
+          'Unknown SetOrderShippingMethodResult variant: $runtimeType',
+        );
     }
   }
 
@@ -42,12 +45,10 @@ class IneligibleShippingMethodError extends SetOrderShippingMethodResult {
   ErrorCode? errorCode;
   String? message;
 
-  IneligibleShippingMethodError({
-    this.errorCode,
-    this.message,
-  }) : super._();
+  IneligibleShippingMethodError({this.errorCode, this.message}) : super._();
 
-  factory IneligibleShippingMethodError.fromJson(Map<String, dynamic> json) => _$IneligibleShippingMethodErrorFromJson(json);
+  factory IneligibleShippingMethodError.fromJson(Map<String, dynamic> json) =>
+      _$IneligibleShippingMethodErrorFromJson(json);
   @override
   Map<String, dynamic> toJson() => _$IneligibleShippingMethodErrorToJson(this);
 }
@@ -57,12 +58,10 @@ class NoActiveOrderError extends SetOrderShippingMethodResult {
   ErrorCode? errorCode;
   String? message;
 
-  NoActiveOrderError({
-    this.errorCode,
-    this.message,
-  }) : super._();
+  NoActiveOrderError({this.errorCode, this.message}) : super._();
 
-  factory NoActiveOrderError.fromJson(Map<String, dynamic> json) => _$NoActiveOrderErrorFromJson(json);
+  factory NoActiveOrderError.fromJson(Map<String, dynamic> json) =>
+      _$NoActiveOrderErrorFromJson(json);
   @override
   Map<String, dynamic> toJson() => _$NoActiveOrderErrorToJson(this);
 }
@@ -141,12 +140,10 @@ class OrderModificationError extends SetOrderShippingMethodResult {
   ErrorCode? errorCode;
   String? message;
 
-  OrderModificationError({
-    this.errorCode,
-    this.message,
-  }) : super._();
+  OrderModificationError({this.errorCode, this.message}) : super._();
 
-  factory OrderModificationError.fromJson(Map<String, dynamic> json) => _$OrderModificationErrorFromJson(json);
+  factory OrderModificationError.fromJson(Map<String, dynamic> json) =>
+      _$OrderModificationErrorFromJson(json);
   @override
   Map<String, dynamic> toJson() => _$OrderModificationErrorToJson(this);
 }

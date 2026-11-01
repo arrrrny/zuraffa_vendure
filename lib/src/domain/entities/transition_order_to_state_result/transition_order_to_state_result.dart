@@ -1,4 +1,5 @@
 import 'package:json_annotation/json_annotation.dart';
+
 import '../discount/discount.dart';
 import '../fulfillment/fulfillment.dart';
 import '../history_entry_list/history_entry_list.dart';
@@ -26,7 +27,9 @@ sealed class TransitionOrderToStateResult {
       case 'orderStateTransitionError':
         return OrderStateTransitionError.fromJson(json);
       default:
-        throw ArgumentError('Unknown TransitionOrderToStateResult variant: $runtimeType');
+        throw ArgumentError(
+          'Unknown TransitionOrderToStateResult variant: $runtimeType',
+        );
     }
   }
 
@@ -118,7 +121,8 @@ class OrderStateTransitionError extends TransitionOrderToStateResult {
     this.transitionError,
   }) : super._();
 
-  factory OrderStateTransitionError.fromJson(Map<String, dynamic> json) => _$OrderStateTransitionErrorFromJson(json);
+  factory OrderStateTransitionError.fromJson(Map<String, dynamic> json) =>
+      _$OrderStateTransitionErrorFromJson(json);
   @override
   Map<String, dynamic> toJson() => _$OrderStateTransitionErrorToJson(this);
 }

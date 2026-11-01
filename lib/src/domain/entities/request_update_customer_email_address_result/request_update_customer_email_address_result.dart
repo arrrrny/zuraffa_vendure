@@ -1,4 +1,5 @@
 import 'package:json_annotation/json_annotation.dart';
+
 import '../enums/error_code.dart';
 
 part 'request_update_customer_email_address_result.g.dart';
@@ -6,7 +7,9 @@ part 'request_update_customer_email_address_result.g.dart';
 sealed class RequestUpdateCustomerEmailAddressResult {
   const RequestUpdateCustomerEmailAddressResult._();
 
-  factory RequestUpdateCustomerEmailAddressResult.fromJson(Map<String, dynamic> json) {
+  factory RequestUpdateCustomerEmailAddressResult.fromJson(
+    Map<String, dynamic> json,
+  ) {
     final runtimeType = json['runtimeType'] as String?;
     switch (runtimeType) {
       case 'emailAddressConflictError':
@@ -18,7 +21,9 @@ sealed class RequestUpdateCustomerEmailAddressResult {
       case 'success':
         return Success.fromJson(json);
       default:
-        throw ArgumentError('Unknown RequestUpdateCustomerEmailAddressResult variant: $runtimeType');
+        throw ArgumentError(
+          'Unknown RequestUpdateCustomerEmailAddressResult variant: $runtimeType',
+        );
     }
   }
 
@@ -26,16 +31,15 @@ sealed class RequestUpdateCustomerEmailAddressResult {
 }
 
 @JsonSerializable(explicitToJson: true)
-class EmailAddressConflictError extends RequestUpdateCustomerEmailAddressResult {
+class EmailAddressConflictError
+    extends RequestUpdateCustomerEmailAddressResult {
   ErrorCode? errorCode;
   String? message;
 
-  EmailAddressConflictError({
-    this.errorCode,
-    this.message,
-  }) : super._();
+  EmailAddressConflictError({this.errorCode, this.message}) : super._();
 
-  factory EmailAddressConflictError.fromJson(Map<String, dynamic> json) => _$EmailAddressConflictErrorFromJson(json);
+  factory EmailAddressConflictError.fromJson(Map<String, dynamic> json) =>
+      _$EmailAddressConflictErrorFromJson(json);
   @override
   Map<String, dynamic> toJson() => _$EmailAddressConflictErrorToJson(this);
 }
@@ -52,7 +56,8 @@ class InvalidCredentialsError extends RequestUpdateCustomerEmailAddressResult {
     this.message,
   }) : super._();
 
-  factory InvalidCredentialsError.fromJson(Map<String, dynamic> json) => _$InvalidCredentialsErrorFromJson(json);
+  factory InvalidCredentialsError.fromJson(Map<String, dynamic> json) =>
+      _$InvalidCredentialsErrorFromJson(json);
   @override
   Map<String, dynamic> toJson() => _$InvalidCredentialsErrorToJson(this);
 }
@@ -62,12 +67,10 @@ class NativeAuthStrategyError extends RequestUpdateCustomerEmailAddressResult {
   ErrorCode? errorCode;
   String? message;
 
-  NativeAuthStrategyError({
-    this.errorCode,
-    this.message,
-  }) : super._();
+  NativeAuthStrategyError({this.errorCode, this.message}) : super._();
 
-  factory NativeAuthStrategyError.fromJson(Map<String, dynamic> json) => _$NativeAuthStrategyErrorFromJson(json);
+  factory NativeAuthStrategyError.fromJson(Map<String, dynamic> json) =>
+      _$NativeAuthStrategyErrorFromJson(json);
   @override
   Map<String, dynamic> toJson() => _$NativeAuthStrategyErrorToJson(this);
 }
@@ -76,11 +79,10 @@ class NativeAuthStrategyError extends RequestUpdateCustomerEmailAddressResult {
 class Success extends RequestUpdateCustomerEmailAddressResult {
   bool? success;
 
-  Success({
-    this.success,
-  }) : super._();
+  Success({this.success}) : super._();
 
-  factory Success.fromJson(Map<String, dynamic> json) => _$SuccessFromJson(json);
+  factory Success.fromJson(Map<String, dynamic> json) =>
+      _$SuccessFromJson(json);
   @override
   Map<String, dynamic> toJson() => _$SuccessToJson(this);
 }
