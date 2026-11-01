@@ -1,3 +1,20 @@
+## 7.3.3
+
+Hotfix (consumer-reported via the fleet verification round — zik_zak's
+vendure-client init scenarios):
+
+- **`mutateWithHeaders` tolerates an absent body** — the auth seam's
+  contract is headers-only (the session token rides the
+  `vendure-auth-token` response header). A mutation whose
+  `expectedDataType` key is absent in the response (e.g. a firebase
+  token-exchange server answering with only `__typename`) now resolves
+  to null data instead of throwing `No data returned for expected type:
+  authenticate`, matching vendure-flutter-sdk 3.0.1's
+  `AuthBaseOperations.extractResponseHeaders`. `VendureResponse.data` is
+  `T?`.
+- Regression locks A2 (in-memory, headers-only firebase exchange) and
+  G10 (graphql adapter, `__typename`-only response).
+
 ## 7.3.2
 
 The Zuraffa reimplementation of the Vendure Flutter SDK, shipped as the
@@ -46,20 +63,3 @@ error path (D1–D6), the GraphQL adapter's envelope/dot-path/ErrorResult
 handling, context assembly, and the union wire-dispatch normalization
 (G1–G9), and the facade lifecycle plus per-group request-shape fidelity
 (F1–F4, O1–O3, A1, C1) through the scripted in-memory datasource.
-
-## 7.3.3
-
-Hotfix (consumer-reported via the fleet verification round — zik_zak's
-vendure-client init scenarios):
-
-- **`mutateWithHeaders` tolerates an absent body** — the auth seam's
-  contract is headers-only (the session token rides the
-  `vendure-auth-token` response header). A mutation whose
-  `expectedDataType` key is absent in the response (e.g. a firebase
-  token-exchange server answering with only `__typename`) now resolves
-  to null data instead of throwing `No data returned for expected type:
-  authenticate`, matching vendure-flutter-sdk 3.0.1's
-  `AuthBaseOperations.extractResponseHeaders`. `VendureResponse.data` is
-  `T?`.
-- Regression locks A2 (in-memory, headers-only firebase exchange) and
-  G10 (graphql adapter, `__typename`-only response).
