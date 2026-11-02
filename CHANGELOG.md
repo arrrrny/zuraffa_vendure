@@ -1,3 +1,7 @@
+## 7.3.6 - 2026-11-02
+
+- Mono-version fleet alignment to 7.3.6; internal dependencies refreshed; xml override 7.1.0.
+
 ## 7.3.5
 
 - Fix: `Vendure._finalizeInitialization` connection-check query now passes
