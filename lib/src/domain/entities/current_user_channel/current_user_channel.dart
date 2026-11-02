@@ -7,7 +7,7 @@ part 'current_user_channel.g.dart';
 /// manifest (spec 001, entity-manifest.json).
 @Zorphy(generateJson: true)
 abstract class $CurrentUserChannel {
-  String get code;
+  String? get code;
   String get id;
   String get token;
 }

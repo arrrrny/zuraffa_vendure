@@ -11,7 +11,7 @@ part of 'current_user_channel.dart';
 @JsonSerializable(explicitToJson: true, checked: true)
 class CurrentUserChannel {
   CurrentUserChannel({
-    required String this.code,
+    String? this.code,
     required String this.id,
     required String this.token,
   });
@@ -19,7 +19,7 @@ class CurrentUserChannel {
   factory CurrentUserChannel.fromJson(Map<String, dynamic> json) =>
       _$CurrentUserChannelFromJson(json);
 
-  final String code;
+  final String? code;
 
   final String id;
 
@@ -143,11 +143,11 @@ class CurrentUserChannel {
 
 extension CurrentUserChannelPropertyHelpers on CurrentUserChannel {
   bool get hasCode {
-    return this.code.isNotEmpty;
+    return this.code?.isNotEmpty ?? false;
   }
 
   bool get noCode {
-    return this.code.isEmpty;
+    return this.code?.isEmpty ?? true;
   }
 
   bool get hasId {
@@ -206,7 +206,7 @@ abstract final class CurrentUserChannelFields {
   static const token = Field<CurrentUserChannel, String>('token', _$token);
 
   static String _$code(CurrentUserChannel e) {
-    return e.code;
+    return e.code ?? '';
   }
 
   static String _$id(CurrentUserChannel e) {

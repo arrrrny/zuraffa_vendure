@@ -9,7 +9,7 @@ part of 'current_user_channel.dart';
 CurrentUserChannel _$CurrentUserChannelFromJson(Map<String, dynamic> json) =>
     $checkedCreate('CurrentUserChannel', json, ($checkedConvert) {
       final val = CurrentUserChannel(
-        code: $checkedConvert('code', (v) => v as String),
+        code: $checkedConvert('code', (v) => v as String?),
         id: $checkedConvert('id', (v) => v as String),
         token: $checkedConvert('token', (v) => v as String),
       );

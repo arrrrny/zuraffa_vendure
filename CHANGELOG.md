@@ -1,3 +1,10 @@
+## 7.3.4
+
+- Fix: `CurrentUserChannel.code` is now nullable. Real Vendure backend
+  `authenticate` / `firebaseAuth` mutations select `channels { id token
+  permissions }` without `code`, which previously caused
+  `CheckedFromJsonException` during JSON decoding.
+
 ## 7.3.3
 
 Hotfix (consumer-reported via the fleet verification round — zik_zak's
