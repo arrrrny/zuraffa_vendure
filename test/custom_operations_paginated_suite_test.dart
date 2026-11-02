@@ -47,6 +47,26 @@ const _dealListQuery =
     'query GetDealList(\$options: DealListOptions) { '
     'getDealList(options: \$options) { items { id listing { id title price } } totalItems } }';
 
+/// P3's fixture: the deal envelope plus a KNOWN enum field
+/// (`currencyCode` -> CurrencyCode in VendureUtils._fieldToEnumType), so the
+/// convertEnums passthrough's conversion has something to convert.
+const _dealListEnumEnvelope = {
+  'items': [
+    {
+      'id': '1',
+      '__typename': 'Deal',
+      'listing': {
+        '__typename': 'ChannelListing',
+        'id': 'l1',
+        'title': 'Air Max 90',
+        'price': 12999,
+        'currencyCode': 'USD',
+      },
+    },
+  ],
+  'totalItems': 1,
+};
+
 void main() {
   group('CustomOperations paginated envelope normalization (zuraffa_vendure#2)', () {
     test('P1: queryListPaginated converts __typename before fromJson', () async {
@@ -92,6 +112,25 @@ void main() {
       final listing = page.items.single['listing'] as Map<String, dynamic>;
       expect(listing['__typename'], isNull);
       expect(listing['title'], 'Air Max 90');
+    });
+
+    test('P3: convertEnums converts known enum fields on the paginated path', () async {
+      final ops = CustomOperations(
+        InMemoryVendureDataSource(script: {'getDealList': _dealListEnumEnvelope}),
+      );
+
+      final page = await ops.queryListPaginated<Map<String, dynamic>>(
+        _dealListQuery,
+        fromJson: _strictListingDecoder,
+        expectedDataType: 'getDealList',
+        convertEnums: true,
+      );
+
+      final listing = page.items.single['listing'] as Map<String, dynamic>;
+      // currencyCode is a known enum field (VendureUtils._fieldToEnumType),
+      // so convertEnums: true converts it to its Dart enum format —
+      // pinning the passthrough this fix activated (was dead pre-7.3.6).
+      expect(listing['currencyCode'], 'usd');
     });
   });
 }
