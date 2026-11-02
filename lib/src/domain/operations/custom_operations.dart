@@ -148,7 +148,7 @@ class CustomOperations {
       headers: const {},
       expectedDataType: expectedDataType ?? 'data',
     );
-    return _paginate<T>(data, fromJson);
+    return _paginate<T>(_normalizeEnvelope(data, convertEnums), fromJson);
   }
 
   Future<PaginatedList<T>> mutateListPaginated<T>(
@@ -165,7 +165,7 @@ class CustomOperations {
       headers: const {},
       expectedDataType: expectedDataType ?? 'data',
     );
-    return _paginate<T>(data, fromJson);
+    return _paginate<T>(_normalizeEnvelope(data, convertEnums), fromJson);
   }
 
   /// The auth seam's header extraction, exposed publicly (the source SDK
@@ -213,6 +213,27 @@ class CustomOperations {
       variables,
       convertEnums: convertEnums,
     ) as Map<String, dynamic>;
+  }
+
+  /// The paginated envelope's decode preparation — the source SDK's
+  /// queryListPaginated/mutateListPaginated contract, restored
+  /// (zuraffa_vendure#2, reported from zik_zak#508): gql() injects
+  /// __typename into every selection set, and the raw escape hatch above
+  /// returns the extracted payload as-is, so __typename keys survive into
+  /// entity fromJson. A polymorphic dispatcher (zorphy explicitSubTypes
+  /// fromJson — e.g. zik_zak's Listing.fromJson) then throws
+  /// UnsupportedError on any server type it doesn't list ('ChannelListing'
+  /// for raptorr's Deal.listing). The __typename -> runtimeType conversion
+  /// restores the pre-7.x decode; with convertEnums enabled the known-enum
+  /// fields also convert to their Dart format, as the source SDK did.
+  static dynamic _normalizeEnvelope(dynamic data, bool convertEnums) {
+    if (data is Map || data is List) {
+      return VendureUtils.normalizeGraphQLData(
+        data,
+        convertEnums: convertEnums,
+      );
+    }
+    return data;
   }
 
   static Map<String, dynamic> _withOptions(

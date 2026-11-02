@@ -1,5 +1,15 @@
 ## 7.3.6 - 2026-11-02
 
+- Fix: `CustomOperations.queryListPaginated` / `mutateListPaginated` restore
+  the source SDK's envelope normalization — `__typename` → `runtimeType`
+  before `fromJson` (with the caller's `convertEnums` honored on output,
+  which was previously dead on this path). `gql()` injects `__typename`
+  into every selection set and the raw escape hatch returns the payload
+  as-is, so polymorphic entity decoders (zorphy `explicitSubTypes`
+  fromJson — e.g. zik_zak's `Listing.fromJson`) threw
+  `UnsupportedError: The __typename 'ChannelListing' is not supported…`
+  on every paginated row. Regression suite:
+  `test/custom_operations_paginated_suite_test.dart` (zuraffa_vendure#2, PR#3).
 - Mono-version fleet alignment to 7.3.6; internal dependencies refreshed; xml override 7.1.0.
 
 ## 7.3.5
