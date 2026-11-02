@@ -1,3 +1,9 @@
+## 7.3.5
+
+- Fix: `Vendure._finalizeInitialization` connection-check query now passes
+  `fromJson: null` so the scalar `__typename` string return doesn't fail
+  the `Map<String, dynamic>` expectation.
+
 ## 7.3.4
 
 - Fix: `CurrentUserChannel.code` is now nullable. Real Vendure backend

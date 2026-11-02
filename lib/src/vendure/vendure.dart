@@ -658,7 +658,7 @@ class Vendure {
           'query { __typename }',
           variables: const {},
           headers: const {},
-          fromJson: (json) => json,
+          fromJson: null,
           expectedDataType: '__typename',
         );
       } catch (e) {
