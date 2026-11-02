@@ -16,7 +16,7 @@ mutation unions are hand-written sealed classes dispatched on the wire's
 
 ```yaml
 dependencies:
-  vendure: ^7.3.5
+  vendure: ^7.3.6
 ```
 
 ## Usage
