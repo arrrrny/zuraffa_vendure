@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:graphql/client.dart';
+import 'package:meta/meta.dart';
 
 import '../../../domain/datasources/vendure_datasource.dart';
 import '../../../vendure/app_check_provider.dart';
@@ -59,6 +60,9 @@ class VendureContext {
     String? apiKeyHeaderKey,
     String? token,
     bool? useVendureGuestSession,
+    Duration? timeout,
+    AppCheckConfig? appCheckConfig,
+    Map<String, List<dynamic>>? customFieldsConfig,
   }) => VendureContext(
     endpoint: endpoint,
     languageCode: languageCode ?? this.languageCode,
@@ -69,6 +73,13 @@ class VendureContext {
     useVendureGuestSession:
         useVendureGuestSession ?? this.useVendureGuestSession,
     defaultHeaders: defaultHeaders,
+    // The transport vocabulary rides the rebuild too — a copyWith that
+    // silently reverted a consumer's explicit timeout to graphql's 5s
+    // default would resurrect the `Bad state: Future already completed`
+    // crash this file's queryRequestTimeout contract exists to prevent.
+    timeout: timeout ?? this.timeout,
+    appCheckConfig: appCheckConfig ?? this.appCheckConfig,
+    customFieldsConfig: customFieldsConfig ?? this.customFieldsConfig,
   );
 
   /// The endpoint with [languageCode] riding as a query parameter —
@@ -120,6 +131,7 @@ class GraphQLVendureDataSource implements VendureDataSource {
   /// link chain — public so the transport regression suite can pin the
   /// wire configuration without a server; production traffic flows
   /// through [query]/[mutate]/[queryList]/[mutateWithHeaders].
+  @visibleForTesting
   GraphQLClient buildDefaultClient() => GraphQLClient(
     link: _buildLink(),
     cache: GraphQLCache(),
@@ -372,6 +384,7 @@ class GraphQLVendureDataSource implements VendureDataSource {
   /// transport regression suite can pin the wire configuration (protocol,
   /// endpoint scheme/languageCode swap) without a server; production
   /// traffic flows through [subscribe].
+  @visibleForTesting
   GraphQLClient buildSubscriptionClient() {
     final endpointUrl = context.endpointWithLanguageCode;
     final uri = Uri.parse(endpointUrl);

@@ -57,6 +57,23 @@ void main() {
       expect(ds.buildDefaultClient().queryManager.requestTimeout, isNull);
     });
 
+    test('T2b: copyWith round-trips the transport vocabulary — a context rebuild keeps the explicit timeout', () {
+      const context = VendureContext(
+        endpoint: _endpoint,
+        timeout: Duration(minutes: 2),
+        customFieldsConfig: {
+          'product': ['featured'],
+        },
+      );
+      final rebuilt = context.copyWith(channelToken: 'channel-1');
+      // The very regression the review flagged: copyWith dropping the
+      // transport fields would revert the timeout to graphql's 5s default.
+      expect(rebuilt.timeout, const Duration(minutes: 2));
+      expect(rebuilt.customFieldsConfig, context.customFieldsConfig);
+      expect(rebuilt.appCheckConfig, isNull);
+      expect(rebuilt.channelToken, 'channel-1');
+    });
+
     test('T3: the subscription client speaks graphql-transport-ws (Vendure servers close the legacy graphqlWs subprotocol)', () {
       final ds = GraphQLVendureDataSource(
         const VendureContext(endpoint: _endpoint),
