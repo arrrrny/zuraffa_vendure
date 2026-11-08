@@ -36,6 +36,68 @@ GraphQLVendureDataSource dataSourceFor(
 int _decoder(Map<String, dynamic> json) => (json['id'] as num?)?.toInt() ?? -1;
 
 void main() {
+  group('transport wire configuration (T-suite, regression for the zik_zak websocket loop + Future-already-completed crash)', () {
+    test('T1: the default client carries the context timeout, not graphql\'s silent 5s queryRequestTimeout', () {
+      final ds = GraphQLVendureDataSource(
+        const VendureContext(
+          endpoint: _endpoint,
+          timeout: Duration(seconds: 42),
+        ),
+      );
+      expect(
+        ds.buildDefaultClient().queryManager.requestTimeout,
+        const Duration(seconds: 42),
+      );
+    });
+
+    test('T2: a null context timeout disables the request timeout (zik_zak issue-265 configuration)', () {
+      final ds = GraphQLVendureDataSource(
+        const VendureContext(endpoint: _endpoint),
+      );
+      expect(ds.buildDefaultClient().queryManager.requestTimeout, isNull);
+    });
+
+    test('T2b: copyWith round-trips the transport vocabulary — a context rebuild keeps the explicit timeout', () {
+      const context = VendureContext(
+        endpoint: _endpoint,
+        timeout: Duration(minutes: 2),
+        customFieldsConfig: {
+          'product': ['featured'],
+        },
+      );
+      final rebuilt = context.copyWith(channelToken: 'channel-1');
+      // The very regression the review flagged: copyWith dropping the
+      // transport fields would revert the timeout to graphql's 5s default.
+      expect(rebuilt.timeout, const Duration(minutes: 2));
+      expect(rebuilt.customFieldsConfig, context.customFieldsConfig);
+      expect(rebuilt.appCheckConfig, isNull);
+      expect(rebuilt.channelToken, 'channel-1');
+    });
+
+    test('T3: the subscription client speaks graphql-transport-ws (Vendure servers close the legacy graphqlWs subprotocol)', () {
+      final ds = GraphQLVendureDataSource(
+        const VendureContext(endpoint: _endpoint),
+      );
+      final link = ds.buildSubscriptionClient().link;
+      expect(link, isA<WebSocketLink>());
+      expect(
+        (link as WebSocketLink).subProtocol,
+        GraphQLProtocol.graphqlTransportWs,
+      );
+    });
+
+    test(
+      'T4: the subscription endpoint swaps the scheme and keeps languageCode',
+      () {
+        final ds = GraphQLVendureDataSource(
+          const VendureContext(endpoint: _endpoint, languageCode: 'tr'),
+        );
+        final link = ds.buildSubscriptionClient().link as WebSocketLink;
+        expect(link.url, 'wss://shop.example.com/shop-api?languageCode=tr');
+      },
+    );
+  });
+
   group('GraphQLVendureDataSource envelope handling (FR-005, ported from the source SDK)', () {
     test(
       'G1: extracts the expectedDataType key from the data envelope',
@@ -295,30 +357,27 @@ void main() {
       expect((result as dynamic).id, 'o-9');
     });
 
-    test(
-      'G10: mutateWithHeaders tolerates an absent expectedDataType key '
-      '(the auth seam: token rides the header, body irrelevant)',
-      () async {
-        // The firebase token-exchange server answers the mutation with
-        // only __typename — no authenticate key. The old SDK's
-        // extractResponseHeaders never validated the body; the port's
-        // mutateWithHeaders must return null data + the headers instead
-        // of throwing (zik_zak issue-265/371 init regression lock).
-        final ds = dataSourceFor({
-          'data': {'__typename': 'Mutation'},
-        });
+    test('G10: mutateWithHeaders tolerates an absent expectedDataType key '
+        '(the auth seam: token rides the header, body irrelevant)', () async {
+      // The firebase token-exchange server answers the mutation with
+      // only __typename — no authenticate key. The old SDK's
+      // extractResponseHeaders never validated the body; the port's
+      // mutateWithHeaders must return null data + the headers instead
+      // of throwing (zik_zak issue-265/371 init regression lock).
+      final ds = dataSourceFor({
+        'data': {'__typename': 'Mutation'},
+      });
 
-        final response = await ds.mutateWithHeaders<AuthenticationResult>(
-          'mutation { authenticate(input: {firebaseAuth: {uid: "u", jwt: "j"}}) { __typename } }',
-          variables: const {},
-          headers: const {},
-          fromJson: AuthenticationResult.fromJson,
-          expectedDataType: 'authenticate',
-        );
+      final response = await ds.mutateWithHeaders<AuthenticationResult>(
+        'mutation { authenticate(input: {firebaseAuth: {uid: "u", jwt: "j"}}) { __typename } }',
+        variables: const {},
+        headers: const {},
+        fromJson: AuthenticationResult.fromJson,
+        expectedDataType: 'authenticate',
+      );
 
-        expect(response.data, isNull);
-        expect(response.headers, isEmpty); // scripted link carries no headers
-      },
-    );
+      expect(response.data, isNull);
+      expect(response.headers, isEmpty); // scripted link carries no headers
+    });
   });
 }

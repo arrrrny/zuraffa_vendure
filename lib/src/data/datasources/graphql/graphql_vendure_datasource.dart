@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:graphql/client.dart';
+import 'package:meta/meta.dart';
 
 import '../../../domain/datasources/vendure_datasource.dart';
 import '../../../vendure/app_check_provider.dart';
@@ -59,6 +60,9 @@ class VendureContext {
     String? apiKeyHeaderKey,
     String? token,
     bool? useVendureGuestSession,
+    Duration? timeout,
+    AppCheckConfig? appCheckConfig,
+    Map<String, List<dynamic>>? customFieldsConfig,
   }) => VendureContext(
     endpoint: endpoint,
     languageCode: languageCode ?? this.languageCode,
@@ -69,6 +73,13 @@ class VendureContext {
     useVendureGuestSession:
         useVendureGuestSession ?? this.useVendureGuestSession,
     defaultHeaders: defaultHeaders,
+    // The transport vocabulary rides the rebuild too — a copyWith that
+    // silently reverted a consumer's explicit timeout to graphql's 5s
+    // default would resurrect the `Bad state: Future already completed`
+    // crash this file's queryRequestTimeout contract exists to prevent.
+    timeout: timeout ?? this.timeout,
+    appCheckConfig: appCheckConfig ?? this.appCheckConfig,
+    customFieldsConfig: customFieldsConfig ?? this.customFieldsConfig,
   );
 
   /// The endpoint with [languageCode] riding as a query parameter —
@@ -114,22 +125,37 @@ class GraphQLVendureDataSource implements VendureDataSource {
   /// The lazily-created GraphQL client — the link chain over the context,
   /// no cache (every Vendure operation is a network round-trip by
   /// contract), matching the source SDK's noCache policies.
-  late final GraphQLClient _graphqlClient =
-      _client ??
-      GraphQLClient(
-        link: _buildLink(),
-        cache: GraphQLCache(),
-        defaultPolicies: DefaultPolicies(
-          query: Policies(
-            fetch: FetchPolicy.noCache,
-            cacheReread: CacheRereadPolicy.ignoreAll,
-          ),
-          mutate: Policies(
-            fetch: FetchPolicy.noCache,
-            cacheReread: CacheRereadPolicy.ignoreAll,
-          ),
-        ),
-      );
+  late final GraphQLClient _graphqlClient = _client ?? buildDefaultClient();
+
+  /// The default (non-injected) GraphQL client over this context's real
+  /// link chain — public so the transport regression suite can pin the
+  /// wire configuration without a server; production traffic flows
+  /// through [query]/[mutate]/[queryList]/[mutateWithHeaders].
+  @visibleForTesting
+  GraphQLClient buildDefaultClient() => GraphQLClient(
+    link: _buildLink(),
+    cache: GraphQLCache(),
+    // The context's per-operation timeout rides the client's
+    // queryRequestTimeout. `null` (the source SDK's
+    // `queryRequestTimeout` contract) DISABLES graphql's silent 5s
+    // default: that default fires a synthetic TimeoutException into the
+    // query manager's stream while the late real response still completes
+    // its unguarded onData completer a second time — the consumer-side
+    // `Bad state: Future already completed` crash (consumers like
+    // zik_zak pass `timeout: null` and enforce their own per-call budget;
+    // zik_zak issue 265).
+    queryRequestTimeout: context.timeout,
+    defaultPolicies: DefaultPolicies(
+      query: Policies(
+        fetch: FetchPolicy.noCache,
+        cacheReread: CacheRereadPolicy.ignoreAll,
+      ),
+      mutate: Policies(
+        fetch: FetchPolicy.noCache,
+        cacheReread: CacheRereadPolicy.ignoreAll,
+      ),
+    ),
+  );
 
   Link _buildLink() {
     Link link = HttpLink(context.endpointWithLanguageCode);
@@ -327,7 +353,7 @@ class GraphQLVendureDataSource implements VendureDataSource {
     // endpoint (http(s) → ws(s) scheme swap), the auth vocabulary riding
     // the socket's initialPayload (ported from the source SDK's
     // _getSubscriptionClient/_buildWebsocketPayload).
-    final client = _subscriptionClient ??= _buildSubscriptionClient();
+    final client = _subscriptionClient ??= buildSubscriptionClient();
     final processedDocument = context.customFieldsConfig != null
         ? VendureUtils.sanitizeGraphQLQuery(
             document,
@@ -354,7 +380,12 @@ class GraphQLVendureDataSource implements VendureDataSource {
 
   GraphQLClient? _subscriptionClient;
 
-  GraphQLClient _buildSubscriptionClient() {
+  /// The subscription client over the websocket transport — public so the
+  /// transport regression suite can pin the wire configuration (protocol,
+  /// endpoint scheme/languageCode swap) without a server; production
+  /// traffic flows through [subscribe].
+  @visibleForTesting
+  GraphQLClient buildSubscriptionClient() {
     final endpointUrl = context.endpointWithLanguageCode;
     final uri = Uri.parse(endpointUrl);
     final scheme = switch (uri.scheme) {
@@ -371,6 +402,13 @@ class GraphQLVendureDataSource implements VendureDataSource {
           inactivityTimeout: const Duration(seconds: 30),
           initialPayload: _buildWebsocketPayload,
         ),
+        // The Vendure server speaks graphql-transport-ws (the protocol of
+        // the npm `graphql-ws` library); the legacy `graphqlWs` default
+        // gets the socket closed by the server right after connection_init,
+        // which with autoReconnect becomes an endless
+        // connect/initialise/disconnect loop. Restored from the source
+        // SDK (vendure-flutter-sdk 3.0.1 `_getSubscriptionClient`).
+        subProtocol: GraphQLProtocol.graphqlTransportWs,
       ),
       cache: GraphQLCache(),
     );

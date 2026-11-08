@@ -1,3 +1,33 @@
+## Unreleased
+
+Two transport regressions from the 7.x reimplementation, both reported live
+on zik_zak (websocket churn + unhandled `Bad state: Future already
+completed`):
+
+- **Subscriptions speak `graphql-transport-ws` again.** The reimplementation
+  dropped the source SDK's `subProtocol: GraphQLProtocol.graphqlTransportWs`
+  on the subscription `WebSocketLink`, silently falling back to the legacy
+  `graphqlWs` protocol. Vendure servers close the socket right after
+  `connection_init`, and with `autoReconnect` that becomes the endless
+  `Connected to websocket → Initialising connection → Disconnected from
+  websocket` loop (reconnect every 5s, forever). Restored from
+  vendure-flutter-sdk 3.0.1 `_getSubscriptionClient`.
+- **The `timeout` parameter is wired into the client.** `VendureContext.timeout`
+  was dead code: the main `GraphQLClient` was built without
+  `queryRequestTimeout`, so `graphql`'s silent 5s default applied — exactly
+  what consumers like zik_zak disable on purpose (zik_zak issue 265: the
+  budget is enforced per call instead). The default's `Stream.timeout` fires
+  a synthetic `TimeoutException` while the late real response still completes
+  the query manager's unguarded `onData` completer a second time — the
+  unhandled `Bad state: Future already completed` crash through
+  `HttpLink.request` + the AuthLink chain. `queryRequestTimeout:
+  context.timeout` restores the source SDK's `queryRequestTimeout` contract
+  (`timeout: null` = no transport-level timeout).
+- Regression suite: T1–T4 in `test/graphql_datasource_suite_test.dart` pin
+  the client request timeout (context-carried, null = disabled) and the
+  subscription wire configuration (protocol, endpoint scheme/languageCode
+  swap).
+
 ## 7.3.6 - 2026-11-02
 
 - Fix: `CustomOperations.queryListPaginated` / `mutateListPaginated` restore
