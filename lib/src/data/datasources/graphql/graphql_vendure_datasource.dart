@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:graphql/client.dart';
+import 'package:http/http.dart' as http;
 import 'package:meta/meta.dart';
 
 import '../../../domain/datasources/vendure_datasource.dart';
@@ -299,10 +301,7 @@ class GraphQLVendureDataSource implements VendureDataSource {
     // the decoded data is simply null. Only a present-but-wrong-shape
     // payload is an error.
     if (result.hasException) {
-      throw VendureDataSourceException(
-        'GraphQL operation failed: ${result.exception.toString()}',
-        cause: result.exception,
-      );
+      throw _failureException(result);
     }
     final envelope = result.data;
     if (envelope == null) {
@@ -516,10 +515,7 @@ class GraphQLVendureDataSource implements VendureDataSource {
   /// [VendureDataSourceException] — the port's one error path.
   dynamic _handleErrors(QueryResult<Object?> result, String expectedDataType) {
     if (result.hasException) {
-      throw VendureDataSourceException(
-        'GraphQL operation failed: ${result.exception.toString()}',
-        cause: result.exception,
-      );
+      throw _failureException(result);
     }
 
     final data = result.data;
@@ -543,6 +539,85 @@ class GraphQLVendureDataSource implements VendureDataSource {
     }
 
     return extracted;
+  }
+
+  /// The excerpt cap — the first 512 bytes of a failing response's body.
+  static const _bodyExcerptBytes = 512;
+
+  /// Credential shapes the body excerpt must never leak into a log span:
+  /// JWTs (three base64url segments) and labeled secrets
+  /// (`Authorization: Bearer …`, `token=…`, api keys, passwords).
+  static final _jwtPattern = RegExp(
+    r'eyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}',
+  );
+  static final _labeledSecretPattern = RegExp(
+    r'\b(bearer|authorization|token|api[-_]?key|apikey|password|secret)'
+    r'(\s*[:=]\s*|\s+)(\S{8,})',
+    caseSensitive: false,
+  );
+
+  /// The failure exception the port surfaces for [result] — the flattened
+  /// message plus whatever HTTP context the failing response exposed
+  /// (issue #6). The status/content-type ride two places:
+  ///
+  ///  - the response context (present whenever a Response was yielded —
+  ///    GraphQL errors on a 200), and
+  ///  - the raw [http.Response] the gql_http_link attaches to its
+  ///    parse/server link exceptions — present exactly where the context
+  ///    is not: the JSON parser discards a non-JSON body, but the link
+  ///    exception keeps the response that failed to parse (a Cloudflare
+  ///    challenge page, a 502 HTML error, an empty 204).
+  VendureDataSourceException _failureException(QueryResult<Object?> result) {
+    final exception = result.exception;
+    final linkResponseContext = result.context.entry<HttpLinkResponseContext>();
+    final rawResponse = _responseOf(exception?.linkException);
+    final headers = <String, String>{
+      if (linkResponseContext?.headers != null)
+        ...linkResponseContext!.headers!,
+      if (rawResponse != null) ...rawResponse.headers,
+    };
+    return VendureDataSourceException(
+      'GraphQL operation failed: ${exception.toString()}',
+      cause: exception,
+      statusCode: linkResponseContext?.statusCode ?? rawResponse?.statusCode,
+      contentType: headers['content-type'],
+      responseBodyExcerpt: rawResponse == null
+          ? null
+          : _redactBodyExcerpt(rawResponse.bodyBytes),
+    );
+  }
+
+  /// The `http.Response` a gql_http_link >= 1.1.0 parse/server link
+  /// exception carries. Structural read: the field is absent on older
+  /// gql_http_link resolutions (bare `ResponseFormatException`, the body
+  /// lost there) and on `NetworkException`s (no response ever arrived) —
+  /// the excerpt simply stays null.
+  static http.Response? _responseOf(Object? linkException) {
+    if (linkException == null) {
+      return null;
+    }
+    try {
+      final response = (linkException as dynamic).response;
+      return response is http.Response ? response : null;
+    } on NoSuchMethodError {
+      return null;
+    }
+  }
+
+  /// The first [_bodyExcerptBytes] bytes of the failing body, decoded
+  /// lossily, with credential-shaped substrings masked before the excerpt
+  /// can reach a log span.
+  static String _redactBodyExcerpt(List<int> bodyBytes) {
+    final capped = bodyBytes.length > _bodyExcerptBytes
+        ? bodyBytes.sublist(0, _bodyExcerptBytes)
+        : bodyBytes;
+    return utf8
+        .decode(capped, allowMalformed: true)
+        .replaceAllMapped(_jwtPattern, (_) => '[redacted-jwt]')
+        .replaceAllMapped(
+          _labeledSecretPattern,
+          (match) => '${match.group(1)}[redacted]',
+        );
   }
 
   /// Ported from the source SDK: navigate a dot-separated

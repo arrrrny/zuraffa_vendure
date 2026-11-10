@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:graphql/client.dart';
 import 'package:test/test.dart';
 import 'package:vendure/vendure.dart';
@@ -9,6 +12,37 @@ import 'package:vendure/vendure.dart';
 /// transport is a scripted [Link.function] — no server, no network.
 
 const _endpoint = 'https://shop.example.com/shop-api';
+
+/// A loopback server that answers every request with a canned failure —
+/// the real HttpLink rides the real wire, which is where the failing
+/// response's status/content-type/body live (issue #6). Loopback only:
+/// no external network.
+Future<HttpServer> failingServer(
+  int status,
+  String contentType,
+  String body,
+) async {
+  final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+  server.listen((request) async {
+    request.response.statusCode = status;
+    request.response.headers.set(HttpHeaders.contentTypeHeader, contentType);
+    request.response.write(body);
+    await request.response.close();
+  });
+  return server;
+}
+
+/// Runs [run] and returns the surfaced [VendureDataSourceException].
+Future<VendureDataSourceException> surfacedFailure(
+  Future<void> Function() run,
+) async {
+  try {
+    await run();
+  } on VendureDataSourceException catch (failure) {
+    return failure;
+  }
+  fail('expected a VendureDataSourceException');
+}
 
 /// A link that yields [response] on the first call, then fails.
 Link scriptedLink(Map<String, dynamic> response) =>
@@ -378,6 +412,179 @@ void main() {
 
       expect(response.data, isNull);
       expect(response.headers, isEmpty); // scripted link carries no headers
+    });
+  });
+
+  group('HTTP failure context on VendureDataSourceException (issue #6 — the zik_zak#622 non-JSON/502 burst)', () {
+    test('H1: a 502 HTML page surfaces its status, content-type and a 512-byte body excerpt '
+        '(a Cloudflare challenge, a 502 HTML error and an empty 204 are distinguishable again)', () async {
+      // Longer than the 512-byte excerpt cap, with a tail marker the
+      // excerpt must NOT reach.
+      final body =
+          '<html><body><h1>502 Bad Gateway</h1>${'<p>error documentation filler</p>' * 30}END-OF-PAGE</body></html>';
+      final server = await failingServer(502, 'text/html', body);
+      addTearDown(() => server.close(force: true));
+      final ds = GraphQLVendureDataSource(
+        VendureContext(endpoint: 'http://127.0.0.1:${server.port}/shop-api'),
+      );
+
+      final failure = await surfacedFailure(
+        () => ds.query<int>(
+          'query { activeOrder { id } }',
+          variables: const {},
+          headers: const {},
+          fromJson: _decoder,
+          expectedDataType: 'activeOrder',
+        ),
+      );
+
+      expect(failure.statusCode, 502);
+      expect(failure.contentType, 'text/html');
+      expect(failure.responseBodyExcerpt, contains('502 Bad Gateway'));
+      expect(failure.responseBodyExcerpt!.length, lessThanOrEqualTo(512));
+      expect(failure.responseBodyExcerpt, isNot(contains('END-OF-PAGE')));
+      // The single-error-type contract holds, and the flattened message
+      // (what zik_zak's classifier reads today) carries the status too.
+      expect(failure.message, contains('GraphQL operation failed'));
+      expect(failure.toString(), contains('[HTTP 502'));
+    });
+
+    test('H2: a 500 JSON backend error surfaces its status/body through the '
+        'server-exception response as well (mutateWithHeaders path)', () async {
+      final server = await failingServer(
+        500,
+        'application/json',
+        '{"errors":[{"message":"db down"}]}',
+      );
+      addTearDown(() => server.close(force: true));
+      final ds = GraphQLVendureDataSource(
+        VendureContext(endpoint: 'http://127.0.0.1:${server.port}/shop-api'),
+      );
+
+      final failure = await surfacedFailure(
+        () => ds.mutateWithHeaders<AuthenticationResult>(
+          'mutation { authenticate { __typename } }',
+          variables: const {},
+          headers: const {},
+          fromJson: AuthenticationResult.fromJson,
+          expectedDataType: 'authenticate',
+        ),
+      );
+
+      expect(failure.statusCode, 500);
+      expect(failure.contentType, 'application/json');
+      expect(failure.responseBodyExcerpt, contains('db down'));
+      expect(failure.message, contains('GraphQL operation failed'));
+    });
+
+    test(
+      'H3: the response-context status rides the failure when a Response was '
+      'yielded (GraphQL errors on a 200)',
+      () async {
+        final client = GraphQLClient(
+          link: Link.function((request, [forward]) async* {
+            yield Response(
+              data: null,
+              errors: const [GraphQLError(message: 'ValidationError')],
+              response: const {
+                'errors': [
+                  {'message': 'ValidationError'},
+                ],
+              },
+              context: const Context().withEntry(
+                HttpLinkResponseContext(
+                  statusCode: 200,
+                  headers: {'content-type': 'application/json'},
+                ),
+              ),
+            );
+          }),
+          cache: GraphQLCache(),
+        );
+        final ds = GraphQLVendureDataSource(
+          const VendureContext(endpoint: _endpoint),
+          innerClient: client,
+        );
+
+        final failure = await surfacedFailure(
+          () => ds.query<int>(
+            'query { activeOrder { id } }',
+            variables: const {},
+            headers: const {},
+            fromJson: _decoder,
+            expectedDataType: 'activeOrder',
+          ),
+        );
+
+        expect(failure.statusCode, 200);
+        expect(failure.contentType, 'application/json');
+        // No raw body reaches a failure that never carried one.
+        expect(failure.responseBodyExcerpt, isNull);
+      },
+    );
+
+    test('H4: the body excerpt is redacted — bearer tokens and JWTs never reach the log', () async {
+      const jwt =
+          'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJVadQssw5c';
+      final server = await failingServer(
+        502,
+        'text/html',
+        '<html>Authorization: Bearer sk_live_abcdef1234567890 token=$jwt</html>',
+      );
+      addTearDown(() => server.close(force: true));
+      final ds = GraphQLVendureDataSource(
+        VendureContext(endpoint: 'http://127.0.0.1:${server.port}/shop-api'),
+      );
+
+      final failure = await surfacedFailure(
+        () => ds.query<int>(
+          'query { activeOrder { id } }',
+          variables: const {},
+          headers: const {},
+          fromJson: _decoder,
+          expectedDataType: 'activeOrder',
+        ),
+      );
+
+      final excerpt = failure.responseBodyExcerpt!;
+      expect(excerpt, contains('[redacted]'));
+      expect(excerpt, isNot(contains('sk_live_abcdef1234567890')));
+      expect(excerpt, isNot(contains(jwt)));
+    });
+
+    test('H5: a transport failure with no response keeps the contract — HTTP '
+        'fields stay null, the timeout cause is preserved', () async {
+      final client = GraphQLClient(
+        link: Link.function((request, [forward]) async* {
+          throw OperationException(
+            linkException: NetworkException(
+              originalException: TimeoutException('after 0:00:05.000000'),
+              uri: Uri.parse(_endpoint),
+            ),
+          );
+        }),
+        cache: GraphQLCache(),
+      );
+      final ds = GraphQLVendureDataSource(
+        const VendureContext(endpoint: _endpoint),
+        innerClient: client,
+      );
+
+      final failure = await surfacedFailure(
+        () => ds.query<int>(
+          'query { activeOrder { id } }',
+          variables: const {},
+          headers: const {},
+          fromJson: _decoder,
+          expectedDataType: 'activeOrder',
+        ),
+      );
+
+      expect(failure.statusCode, isNull);
+      expect(failure.contentType, isNull);
+      expect(failure.responseBodyExcerpt, isNull);
+      expect(failure.message, contains('GraphQL operation failed'));
+      expect(failure.cause, isA<OperationException>());
     });
   });
 }
