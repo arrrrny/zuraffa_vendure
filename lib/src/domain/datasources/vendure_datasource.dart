@@ -80,14 +80,52 @@ abstract class VendureDataSource {
 /// connection failures, timeouts, GraphQL error payloads, malformed
 /// responses — resolves to one [VendureDataSourceException] (or a subtype)
 /// so callers own one error path.
+///
+/// On transport/parse failures the exception additionally carries whatever
+/// HTTP context the failing response exposed — status code, content-type
+/// and a capped body excerpt — so a Cloudflare challenge page, a 502 HTML
+/// error and an empty body are distinguishable after the fact without
+/// regexing the message (issue #6).
 class VendureDataSourceException implements Exception {
-  const VendureDataSourceException(this.message, {this.cause});
+  const VendureDataSourceException(
+    this.message, {
+    this.cause,
+    this.statusCode,
+    this.contentType,
+    this.responseBodyExcerpt,
+  });
 
   final String message;
   final Object? cause;
 
+  /// The HTTP status code of the failing response — null when the request
+  /// never got a response (DNS failure, connect error, timeout).
+  final int? statusCode;
+
+  /// The failing response's content-type header (`text/html` on a CDN
+  /// challenge page, `application/json` on a backend error).
+  final String? contentType;
+
+  /// A length-capped (first 512 bytes), redacted excerpt of the failing
+  /// response's body — the challenge page / gateway error the GraphQL JSON
+  /// parser otherwise discards.
+  final String? responseBodyExcerpt;
+
   @override
-  String toString() => 'VendureDataSourceException: $message';
+  String toString() {
+    final detail = StringBuffer(message);
+    if (statusCode != null) {
+      detail.write(' [HTTP $statusCode');
+      if (contentType != null) {
+        detail.write(' $contentType');
+      }
+      detail.write(']');
+    }
+    if (responseBodyExcerpt != null) {
+      detail.write(' body: "$responseBodyExcerpt"');
+    }
+    return 'VendureDataSourceException: $detail';
+  }
 }
 
 /// A mutation result that carries the HTTP response headers alongside the
