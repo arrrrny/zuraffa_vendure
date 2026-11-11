@@ -27,6 +27,22 @@ completed`):
   the client request timeout (context-carried, null = disabled) and the
   subscription wire configuration (protocol, endpoint scheme/languageCode
   swap).
+- **The `timeout` wiring no longer arms graphql's `Stream.timeout`.**
+  Passing `context.timeout` into `GraphQLClient.queryRequestTimeout`
+  (the 7.3.8 regression, issue #8) armed a `Stream.timeout` on every
+  Shop API call: when the stream went quiet past the budget, the request
+  failed as a synthetic `TimeoutException` (`No stream event`) and the
+  late real response then double-completed the query manager's unguarded
+  completer — the unhandled `Bad state: Future already completed` crash
+  in the root zone (graphql 5.2.4, `query_manager.dart`). The client now
+  pins `queryRequestTimeout: null` (explicit — omitting restores the
+  silent 5 s default), and the datasource enforces
+  `VendureContext.timeout` in `_executeRaw` / `mutateWithHeaders` via
+  cancellable `Future.timeout`, translating expiry to
+  `VendureDataSourceException`. Regression suite: T1 re-pinned, T5–T7 in
+  `test/graphql_datasource_suite_test.dart` (a quiet stream surfaces a
+  clean exception with zero unhandled async errors; the late response
+  lands silently).
 
 ## 7.3.6 - 2026-11-02
 
