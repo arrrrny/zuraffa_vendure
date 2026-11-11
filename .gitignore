@@ -7,5 +7,10 @@
 pubspec.lock
 !example/pubspec.lock
 
+# Local dependency overrides (e.g. pinning zuraffa to a sibling checkout
+# in the fleet layout) stay untracked, so a bare clone resolves hosted
+# packages by default (issue #9).
+pubspec_overrides.yaml
+
 # Flutter build output
 build/

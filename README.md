@@ -202,6 +202,20 @@ dart analyze
 dart format --set-exit-if-changed lib test
 ```
 
+A bare clone resolves hosted `zuraffa` from pub.dev — no sibling checkout
+is required. To develop against a local `zuraffa` checkout (the fleet
+layout, `~/Developer/zuraffa` next to this repo), create an untracked
+`pubspec_overrides.yaml` beside `pubspec.yaml`:
+
+```yaml
+dependency_overrides:
+  zuraffa:
+    path: ../zuraffa
+```
+
+The file is gitignored (issue #9): committed overrides must never pin a
+sibling path, or an isolated `/tmp` clone fails `dart pub get` at step one.
+
 Pure-Dart package (no Flutter dependency): no presenter/controller/route
 layer (Constitution VII).
 
