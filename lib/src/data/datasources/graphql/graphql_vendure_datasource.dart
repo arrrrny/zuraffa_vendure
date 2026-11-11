@@ -46,7 +46,10 @@ class VendureContext {
   final Map<String, List<dynamic>>? customFieldsConfig;
 
   /// The per-operation timeout (the source SDK's
-  /// `queryRequestTimeout`).
+  /// `queryRequestTimeout`). This is a client-side budget, not an abort: an
+  /// expired `mutate*` releases the caller but the in-flight mutation still
+  /// runs server-side to completion, so blind retries can duplicate side
+  /// effects.
   final Duration? timeout;
 
   /// The Firebase App Check vocabulary (ported from the source SDK's
