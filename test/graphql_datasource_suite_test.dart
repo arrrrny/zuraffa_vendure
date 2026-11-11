@@ -44,6 +44,25 @@ Future<VendureDataSourceException> surfacedFailure(
   fail('expected a VendureDataSourceException');
 }
 
+/// A loopback server that holds every request for [delay] before
+/// answering 200 with [body] — the quiet-stream shape that armed
+/// graphql's `Stream.timeout` in the issue #8 crash. Loopback only.
+Future<HttpServer> delayedServer(Duration delay, String body) async {
+  final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+  server.listen((request) async {
+    if (delay > Duration.zero) {
+      await Future<void>.delayed(delay);
+    }
+    request.response.headers.set(
+      HttpHeaders.contentTypeHeader,
+      'application/json',
+    );
+    request.response.write(body);
+    await request.response.close();
+  });
+  return server;
+}
+
 /// A link that yields [response] on the first call, then fails.
 Link scriptedLink(Map<String, dynamic> response) =>
     Link.function((request, [forward]) async* {
@@ -71,17 +90,18 @@ int _decoder(Map<String, dynamic> json) => (json['id'] as num?)?.toInt() ?? -1;
 
 void main() {
   group('transport wire configuration (T-suite, regression for the zik_zak websocket loop + Future-already-completed crash)', () {
-    test('T1: the default client carries the context timeout, not graphql\'s silent 5s queryRequestTimeout', () {
+    test('T1: the default client NEVER arms graphql\'s Stream.timeout — '
+        'queryRequestTimeout stays null even when the context carries a '
+        'timeout (issue #8: the budget rides Future.timeout in _executeRaw '
+        'instead; a non-null queryRequestTimeout let the late response '
+        'double-complete the query manager\'s completer)', () {
       final ds = GraphQLVendureDataSource(
         const VendureContext(
           endpoint: _endpoint,
           timeout: Duration(seconds: 42),
         ),
       );
-      expect(
-        ds.buildDefaultClient().queryManager.requestTimeout,
-        const Duration(seconds: 42),
-      );
+      expect(ds.buildDefaultClient().queryManager.requestTimeout, isNull);
     });
 
     test('T2: a null context timeout disables the request timeout (zik_zak issue-265 configuration)', () {
@@ -130,6 +150,112 @@ void main() {
         expect(link.url, 'wss://shop.example.com/shop-api?languageCode=tr');
       },
     );
+
+    test(
+      'T5: a stream quiet past the context timeout surfaces a clean '
+      'VendureDataSourceException with ZERO unhandled async errors '
+      '(issue #8: the late response must not double-complete the query '
+      'manager\'s completer — no Bad state: Future already completed)',
+      () async {
+        final server = await delayedServer(
+          const Duration(milliseconds: 150),
+          '{"data":{"__typename":"Query","activeOrder":{"__typename":"Order","id":42}}}',
+        );
+        addTearDown(() => server.close(force: true));
+        final ds = GraphQLVendureDataSource(
+          VendureContext(
+            endpoint: 'http://127.0.0.1:${server.port}/shop-api',
+            timeout: const Duration(milliseconds: 50),
+          ),
+        );
+
+        final unhandled = <Object>[];
+        Object? surfaced;
+        await runZonedGuarded(() async {
+          try {
+            await ds.query<int>(
+              'query { activeOrder { id } }',
+              variables: const {},
+              headers: const {},
+              fromJson: _decoder,
+              expectedDataType: 'activeOrder',
+            );
+          } catch (e) {
+            surfaced = e;
+          }
+          // Let the late scripted response land after the timeout fired.
+          await Future<void>.delayed(const Duration(milliseconds: 300));
+        }, (error, stackTrace) => unhandled.add(error));
+
+        expect(surfaced, isA<VendureDataSourceException>());
+        expect(
+          (surfaced! as VendureDataSourceException).message,
+          contains('timed out'),
+        );
+        expect(unhandled, isEmpty);
+      },
+    );
+
+    test('T6: a response within the budget returns normally — the budget '
+        'wrapper passes success through (issue #8)', () async {
+      final server = await delayedServer(
+        Duration.zero,
+        '{"data":{"__typename":"Query","activeOrder":{"__typename":"Order","id":42}}}',
+      );
+      addTearDown(() => server.close(force: true));
+      final ds = GraphQLVendureDataSource(
+        VendureContext(
+          endpoint: 'http://127.0.0.1:${server.port}/shop-api',
+          timeout: const Duration(seconds: 5),
+        ),
+      );
+
+      final result = await ds.query<int>(
+        'query { activeOrder { id } }',
+        variables: const {},
+        headers: const {},
+        fromJson: _decoder,
+        expectedDataType: 'activeOrder',
+      );
+
+      expect(result, 42);
+    });
+
+    test('T7: the mutateWithHeaders auth seam enforces the same budget — a '
+        'quiet stream surfaces cleanly with ZERO unhandled async errors '
+        '(issue #8)', () async {
+      final server = await delayedServer(
+        const Duration(milliseconds: 150),
+        '{"data":{"__typename":"Mutation","authenticate":{"__typename":"AuthenticationResult","id":"a-1"}}}',
+      );
+      addTearDown(() => server.close(force: true));
+      final ds = GraphQLVendureDataSource(
+        VendureContext(
+          endpoint: 'http://127.0.0.1:${server.port}/shop-api',
+          timeout: const Duration(milliseconds: 50),
+        ),
+      );
+
+      final unhandled = <Object>[];
+      Object? surfaced;
+      await runZonedGuarded(() async {
+        try {
+          await ds.mutateWithHeaders<AuthenticationResult>(
+            'mutation { authenticate { __typename } }',
+            variables: const {},
+            headers: const {},
+            fromJson: AuthenticationResult.fromJson,
+            expectedDataType: 'authenticate',
+          );
+        } catch (e) {
+          surfaced = e;
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      }, (error, stackTrace) => unhandled.add(error));
+
+      expect(surfaced, isA<VendureDataSourceException>());
+      expect(unhandled, isEmpty);
+    });
   });
 
   group('GraphQLVendureDataSource envelope handling (FR-005, ported from the source SDK)', () {

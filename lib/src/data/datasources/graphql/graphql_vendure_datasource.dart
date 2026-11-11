@@ -46,7 +46,9 @@ class VendureContext {
   final Map<String, List<dynamic>>? customFieldsConfig;
 
   /// The per-operation timeout (the source SDK's
-  /// `queryRequestTimeout`).
+  /// `queryRequestTimeout` contract) — enforced in the datasource via
+  /// cancellable `Future.timeout` (issue #8), never through graphql's
+  /// `Stream.timeout`.
   final Duration? timeout;
 
   /// The Firebase App Check vocabulary (ported from the source SDK's
@@ -76,9 +78,10 @@ class VendureContext {
         useVendureGuestSession ?? this.useVendureGuestSession,
     defaultHeaders: defaultHeaders,
     // The transport vocabulary rides the rebuild too — a copyWith that
-    // silently reverted a consumer's explicit timeout to graphql's 5s
-    // default would resurrect the `Bad state: Future already completed`
-    // crash this file's queryRequestTimeout contract exists to prevent.
+    // silently dropped a consumer's explicit timeout would disable the
+    // per-operation budget they asked for (the budget is enforced in
+    // the datasource now, issue #8, so a revert here no longer crashes —
+    // it just quietly stops timing out).
     timeout: timeout ?? this.timeout,
     appCheckConfig: appCheckConfig ?? this.appCheckConfig,
     customFieldsConfig: customFieldsConfig ?? this.customFieldsConfig,
@@ -137,16 +140,19 @@ class GraphQLVendureDataSource implements VendureDataSource {
   GraphQLClient buildDefaultClient() => GraphQLClient(
     link: _buildLink(),
     cache: GraphQLCache(),
-    // The context's per-operation timeout rides the client's
-    // queryRequestTimeout. `null` (the source SDK's
-    // `queryRequestTimeout` contract) DISABLES graphql's silent 5s
-    // default: that default fires a synthetic TimeoutException into the
-    // query manager's stream while the late real response still completes
-    // its unguarded onData completer a second time — the consumer-side
-    // `Bad state: Future already completed` crash (consumers like
-    // zik_zak pass `timeout: null` and enforce their own per-call budget;
-    // zik_zak issue 265).
-    queryRequestTimeout: context.timeout,
+    // Explicit null, ALWAYS — even when the context carries a timeout.
+    // graphql's queryRequestTimeout arms a `Stream.timeout` on the
+    // response stream (query_manager.dart in 5.2.4 listens to it with an
+    // unguarded `completer.complete`): when the stream goes quiet past
+    // the timeout, the synthetic TimeoutException fires AND the late
+    // real response then double-completes that completer — the
+    // consumer-side `Bad state: Future already completed` storm (issue
+    // #8, live on raptorr/zik_zak 7.3.8; zik_zak issue 265 deliberately
+    // avoids this wiring). `null` here keeps `Stream.timeout` disarmed;
+    // the per-operation budget is enforced safely in [_withinBudget]
+    // via `Future.timeout` (the timer cancels on completion and a late
+    // response is dropped silently).
+    queryRequestTimeout: null,
     defaultPolicies: DefaultPolicies(
       query: Policies(
         fetch: FetchPolicy.noCache,
@@ -291,7 +297,7 @@ class GraphQLVendureDataSource implements VendureDataSource {
       context: const Context().withEntry(HttpLinkHeaders(headers: headers)),
       fetchPolicy: FetchPolicy.noCache,
     );
-    final result = await client.mutate(options);
+    final result = await _withinBudget(client.mutate(options));
     // Error validation only — NOT the typed extraction: the auth seam's
     // contract (ported from the source SDK's
     // AuthBaseOperations.extractResponseHeaders) is that the session token
@@ -503,11 +509,38 @@ class GraphQLVendureDataSource implements VendureDataSource {
             fetchPolicy: FetchPolicy.noCache,
           );
 
-    final result = isMutation
-        ? await client.mutate(options as MutationOptions)
-        : await client.query(options as QueryOptions);
+    final result = await _withinBudget(
+      isMutation
+          ? client.mutate(options as MutationOptions)
+          : client.query(options as QueryOptions),
+    );
 
     return _handleErrors(result, expectedDataType);
+  }
+
+  /// Enforces the context's per-operation budget with `Future.timeout`
+  /// — the timer cancels the moment the request completes and a late
+  /// response is dropped silently — and translates expiry to the port's
+  /// one error type. This is what keeps `VendureContext.timeout`'s
+  /// contract alive now that the client's `queryRequestTimeout` is
+  /// pinned to null: graphql's `Stream.timeout` alternative fired a
+  /// synthetic TimeoutException and then let the late real response
+  /// double-complete the query manager's completer (the unhandled
+  /// `Bad state: Future already completed` crash, issue #8). A null
+  /// context timeout means no budget, exactly as before.
+  Future<T> _withinBudget<T>(Future<T> request) async {
+    final timeout = context.timeout;
+    if (timeout == null) {
+      return request;
+    }
+    try {
+      return await request.timeout(timeout);
+    } on TimeoutException catch (e) {
+      throw VendureDataSourceException(
+        'GraphQL operation timed out after ${timeout.inMilliseconds}ms',
+        cause: e,
+      );
+    }
   }
 
   /// Ported from the source SDK: validate the [QueryResult] and extract
