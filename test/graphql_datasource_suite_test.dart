@@ -71,17 +71,58 @@ int _decoder(Map<String, dynamic> json) => (json['id'] as num?)?.toInt() ?? -1;
 
 void main() {
   group('transport wire configuration (T-suite, regression for the zik_zak websocket loop + Future-already-completed crash)', () {
-    test('T1: the default client carries the context timeout, not graphql\'s silent 5s queryRequestTimeout', () {
+    test('T1: the default client NEVER arms graphql\'s Stream.timeout — '
+        'even when the context carries a timeout', () {
+      // zuraffa_vendure#8: graphql enforces queryRequestTimeout with a
+      // Stream.timeout whose expiry escapes the awaiting zone and whose
+      // late real response double-completes the query manager's unguarded
+      // onData completer — the consumer-side unhandled
+      // 'Bad state: Future already completed' crash. The context timeout
+      // is enforced per call with cancellable Future.timeout in
+      // _executeRaw/mutateWithHeaders instead (zik_zak issue 265 doctrine).
       final ds = GraphQLVendureDataSource(
         const VendureContext(
           endpoint: _endpoint,
           timeout: Duration(seconds: 42),
         ),
       );
-      expect(
-        ds.buildDefaultClient().queryManager.requestTimeout,
-        const Duration(seconds: 42),
+      expect(ds.buildDefaultClient().queryManager.requestTimeout, isNull);
+    });
+
+    test('T1b: a configured context timeout surfaces as the one failure '
+        'type with the timeout cause', () async {
+      final client = GraphQLClient(
+        link: Link.function((request, [forward]) async* {
+          await Future<void>.delayed(const Duration(milliseconds: 150));
+          yield const Response(
+            data: {
+              '__typename': 'Query',
+              'activeOrder': {'__typename': 'Order', 'id': 1},
+            },
+            response: {},
+          );
+        }),
+        cache: GraphQLCache(),
       );
+      final ds = GraphQLVendureDataSource(
+        const VendureContext(
+          endpoint: _endpoint,
+          timeout: Duration(milliseconds: 50),
+        ),
+        innerClient: client,
+      );
+
+      final failure = await surfacedFailure(
+        () => ds.query<int>(
+          'query { activeOrder { id } }',
+          variables: const {},
+          headers: const {},
+          fromJson: _decoder,
+          expectedDataType: 'activeOrder',
+        ),
+      );
+      expect(failure.message, contains('timed out'));
+      expect(failure.cause, isA<TimeoutException>());
     });
 
     test('T2: a null context timeout disables the request timeout (zik_zak issue-265 configuration)', () {
@@ -128,6 +169,126 @@ void main() {
         );
         final link = ds.buildSubscriptionClient().link as WebSocketLink;
         expect(link.url, 'wss://shop.example.com/shop-api?languageCode=tr');
+      },
+    );
+
+    test(
+      'T5: a configured context timeout fails cleanly over the real link '
+      'chain and a late response crashes nothing (zuraffa_vendure#8)',
+      () async {
+        // The observed device crash: graphql's Stream.timeout fired a
+        // synthetic 'No stream event' TimeoutException, then the late real
+        // response double-completed the query manager's unguarded onData
+        // completer — unhandled 'Bad state: Future already completed' in
+        // the consumer's zone (through HttpLink.request + the AuthLinks).
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        addTearDown(() => server.close(force: true));
+        server.listen((request) async {
+          await Future<void>.delayed(const Duration(milliseconds: 150));
+          request.response
+            ..statusCode = 200
+            ..headers.set(HttpHeaders.contentTypeHeader, 'application/json')
+            ..write(
+              '{"data":{"__typename":"Query","activeOrder":{"__typename":"Order","id":7}}}',
+            );
+          await request.response.close();
+        });
+        final ds = GraphQLVendureDataSource(
+          VendureContext(
+            endpoint: 'http://127.0.0.1:${server.port}/shop-api',
+            timeout: const Duration(milliseconds: 50),
+          ),
+        );
+
+        final unhandled = <Object>[];
+        VendureDataSourceException? failure;
+        await runZonedGuarded(() async {
+          try {
+            await ds.query<int>(
+              'query { activeOrder { id } }',
+              variables: const {},
+              headers: const {},
+              fromJson: _decoder,
+              expectedDataType: 'activeOrder',
+            );
+          } on VendureDataSourceException catch (e) {
+            failure = e;
+          }
+        }, (error, _) => unhandled.add(error));
+
+        // Settle well past the late 150 ms response so any stray async
+        // error from the transport has landed in the guarded zone.
+        await Future<void>.delayed(const Duration(milliseconds: 400));
+        expect(failure, isNotNull);
+        expect(failure!.message, contains('timed out'));
+        expect(failure!.message, isNot(contains('No stream event')));
+        expect(unhandled, isEmpty);
+      },
+    );
+
+    test(
+      'T6: a slow server with NO configured timeout is left to the '
+      'consumer\'s own budget (the issue-265 contract, behavioral)',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        addTearDown(() => server.close(force: true));
+        server.listen((request) async {
+          await Future<void>.delayed(const Duration(milliseconds: 150));
+          request.response
+            ..statusCode = 200
+            ..headers.set(HttpHeaders.contentTypeHeader, 'application/json')
+            ..write(
+              '{"data":{"__typename":"Query","activeOrder":{"__typename":"Order","id":9}}}',
+            );
+          await request.response.close();
+        });
+        final ds = GraphQLVendureDataSource(
+          VendureContext(endpoint: 'http://127.0.0.1:${server.port}/shop-api'),
+        );
+
+        final result = await ds.query<int>(
+          'query { activeOrder { id } }',
+          variables: const {},
+          headers: const {},
+          fromJson: _decoder,
+          expectedDataType: 'activeOrder',
+        );
+        expect(result, 9);
+      },
+    );
+
+    test(
+      'T7: the budget also guards mutateWithHeaders (the auth seam path)',
+      () async {
+        final client = GraphQLClient(
+          link: Link.function((request, [forward]) async* {
+            await Future<void>.delayed(const Duration(milliseconds: 150));
+            yield const Response(
+              data: {'__typename': 'Mutation'},
+              response: {},
+            );
+          }),
+          cache: GraphQLCache(),
+        );
+        final ds = GraphQLVendureDataSource(
+          const VendureContext(
+            endpoint: _endpoint,
+            timeout: Duration(milliseconds: 50),
+          ),
+          innerClient: client,
+        );
+
+        final failure = await surfacedFailure(
+          () => ds.mutateWithHeaders<AuthenticationResult>(
+            'mutation { authenticate { __typename } }',
+            variables: const {},
+            headers: const {},
+            fromJson: AuthenticationResult.fromJson,
+            expectedDataType: 'authenticate',
+          ),
+        );
+        expect(failure.message, contains('timed out'));
+        expect(failure.cause, isA<TimeoutException>());
       },
     );
   });

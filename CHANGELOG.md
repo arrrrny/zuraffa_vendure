@@ -12,21 +12,30 @@ completed`):
   `Connected to websocket → Initialising connection → Disconnected from
   websocket` loop (reconnect every 5s, forever). Restored from
   vendure-flutter-sdk 3.0.1 `_getSubscriptionClient`.
-- **The `timeout` parameter is wired into the client.** `VendureContext.timeout`
-  was dead code: the main `GraphQLClient` was built without
-  `queryRequestTimeout`, so `graphql`'s silent 5s default applied — exactly
-  what consumers like zik_zak disable on purpose (zik_zak issue 265: the
-  budget is enforced per call instead). The default's `Stream.timeout` fires
-  a synthetic `TimeoutException` while the late real response still completes
-  the query manager's unguarded `onData` completer a second time — the
-  unhandled `Bad state: Future already completed` crash through
-  `HttpLink.request` + the AuthLink chain. `queryRequestTimeout:
-  context.timeout` restores the source SDK's `queryRequestTimeout` contract
-  (`timeout: null` = no transport-level timeout).
-- Regression suite: T1–T4 in `test/graphql_datasource_suite_test.dart` pin
-  the client request timeout (context-carried, null = disabled) and the
-  subscription wire configuration (protocol, endpoint scheme/languageCode
-  swap).
+- **The transport timeout is disarmed on the client and enforced per call
+  with `Future.timeout` instead.** `VendureContext.timeout` was dead code:
+  the main `GraphQLClient` was built without `queryRequestTimeout`, so
+  `graphql`'s silent 5s default applied — exactly what consumers like
+  zik_zak disable on purpose (zik_zak issue 265: the budget is enforced per
+  call instead). The default's `Stream.timeout` fires a synthetic
+  `TimeoutException` while the late real response still completes the query
+  manager's unguarded `onData` completer a second time — the unhandled
+  `Bad state: Future already completed` crash through `HttpLink.request` +
+  the AuthLink chain (observed live against raptorr tr; zik_zak
+  `.specify/bugs/vendure-stream-timeout-crash`). The first attempt wired
+  `queryRequestTimeout: context.timeout` through, which protected
+  `timeout: null` consumers but kept the poisoned `Stream.timeout` armed
+  for every consumer that sets a timeout. The client is now built with an
+  explicit `queryRequestTimeout: null` (never armed — omitting the
+  parameter would restore the 5s default), and `_executeRaw` /
+  `mutateWithHeaders` enforce the context timeout with cancellable
+  `Future.timeout`, surfacing expiry as the port's one failure type with
+  the `TimeoutException` cause.
+- Regression suite: T1–T7 in `test/graphql_datasource_suite_test.dart` pin
+  the disarmed client timeout (even with a context timeout), the per-call
+  budget over a scripted link and the real link chain (a late response
+  crashes nothing), and the subscription wire configuration (protocol,
+  endpoint scheme/languageCode swap).
 
 ## 7.3.6 - 2026-11-02
 

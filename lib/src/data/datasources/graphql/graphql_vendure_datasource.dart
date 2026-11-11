@@ -137,16 +137,22 @@ class GraphQLVendureDataSource implements VendureDataSource {
   GraphQLClient buildDefaultClient() => GraphQLClient(
     link: _buildLink(),
     cache: GraphQLCache(),
-    // The context's per-operation timeout rides the client's
-    // queryRequestTimeout. `null` (the source SDK's
-    // `queryRequestTimeout` contract) DISABLES graphql's silent 5s
-    // default: that default fires a synthetic TimeoutException into the
-    // query manager's stream while the late real response still completes
-    // its unguarded onData completer a second time — the consumer-side
-    // `Bad state: Future already completed` crash (consumers like
-    // zik_zak pass `timeout: null` and enforce their own per-call budget;
-    // zik_zak issue 265).
-    queryRequestTimeout: context.timeout,
+    // The request timeout is NEVER armed on the client — not even when
+    // the context carries a per-operation timeout. graphql enforces
+    // `queryRequestTimeout` with a `Stream.timeout` whose timer survives
+    // the request, whose expiry lands outside the awaiting zone, and
+    // whose late real response double-completes the query manager's
+    // unguarded onData completer: the consumer-side unhandled
+    // `Bad state: Future already completed` crash (zik_zak issue 265;
+    // zuraffa_vendure#8, observed live against raptorr tr). `null` here
+    // must be EXPLICIT — omitting the parameter restores graphql's
+    // silent 5s default, which is exactly the published-7.3.8
+    // regression. The context timeout is instead enforced per call with
+    // cancellable `Future.timeout` in [_enforceBudget]
+    // (_executeRaw/mutateWithHeaders), restoring the source SDK's
+    // `queryRequestTimeout` contract: `timeout: null` = no package-level
+    // budget, the consumer owns it.
+    queryRequestTimeout: null,
     defaultPolicies: DefaultPolicies(
       query: Policies(
         fetch: FetchPolicy.noCache,
@@ -291,7 +297,7 @@ class GraphQLVendureDataSource implements VendureDataSource {
       context: const Context().withEntry(HttpLinkHeaders(headers: headers)),
       fetchPolicy: FetchPolicy.noCache,
     );
-    final result = await client.mutate(options);
+    final result = await _enforceBudget(client.mutate(options));
     // Error validation only — NOT the typed extraction: the auth seam's
     // contract (ported from the source SDK's
     // AuthBaseOperations.extractResponseHeaders) is that the session token
@@ -503,11 +509,40 @@ class GraphQLVendureDataSource implements VendureDataSource {
             fetchPolicy: FetchPolicy.noCache,
           );
 
-    final result = isMutation
-        ? await client.mutate(options as MutationOptions)
-        : await client.query(options as QueryOptions);
+    final result = await _enforceBudget(
+      isMutation
+          ? client.mutate(options as MutationOptions)
+          : client.query(options as QueryOptions),
+    );
 
     return _handleErrors(result, expectedDataType);
+  }
+
+  /// Enforces [VendureContext.timeout] as a per-call budget with
+  /// `Future.timeout` — deliberately NOT via the graphql client's
+  /// `queryRequestTimeout` (a `Stream.timeout`): that timer keeps running
+  /// after the request settles, its expiry escapes the awaiting zone as an
+  /// unhandled async error, and the late real response double-completes
+  /// the query manager's unguarded onData completer — the
+  /// `Bad state: Future already completed` crash (zik_zak issue 265;
+  /// zuraffa_vendure#8). `Future.timeout` cancels its timer when the call
+  /// completes first, and its expiry propagates through the awaiting
+  /// chain as the port's one failure type with the [TimeoutException]
+  /// cause.
+  Future<T> _enforceBudget<T>(Future<T> pending) {
+    final timeout = context.timeout;
+    if (timeout == null) return pending;
+    return pending.timeout(
+      timeout,
+      onTimeout: () => throw VendureDataSourceException(
+        'Vendure operation timed out after ${timeout.inMilliseconds}ms',
+        cause: TimeoutException(
+          'Vendure operation exceeded its '
+          '${timeout.inMilliseconds}ms budget',
+          timeout,
+        ),
+      ),
+    );
   }
 
   /// Ported from the source SDK: validate the [QueryResult] and extract
