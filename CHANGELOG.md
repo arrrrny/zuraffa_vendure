@@ -1,3 +1,7 @@
+## 7.4.1 - 2026-11-11
+
+Fleet release 7.4.1: core adds zfa tunnel (Cloudflare-hosted MCP servers), MCP streamable-HTTP transport with usecase tools, blocking lifecycle hooks (#2032), typed tool param coercion (#2061); whole fleet mono-aligned to 7.4.1.
+
 ## Unreleased
 
 Two transport regressions from the 7.x reimplementation, both reported live
