@@ -32,12 +32,3 @@ dev_dependencies:
 # still transitively pull the abandoned minio (xml 6.x) resolve cleanly.
 dependency_overrides:
   xml: 7.1.0
-
-# A local pin of zuraffa to a sibling checkout (fleet layout) lives in an
-# UNTRACKED pubspec_overrides.yaml — see .gitignore and the README's
-# Development section. Never commit a sibling-path pin here: an isolated
-# /tmp clone has no sibling checkout and `dart pub get` must resolve
-# hosted zuraffa by default (issue #9).
-
-  zuraffa:
-    path: ../zuraffa
