@@ -47,6 +47,27 @@ completed`):
   `test/graphql_datasource_suite_test.dart` (a quiet stream surfaces a
   clean exception with zero unhandled async errors; the late response
   lands silently).
+- **Transport moved to the hardened `graphql_plus` fork.** The unhandled
+  `Bad state: Future already completed` had a root cause in the dependency,
+  not only in vendure's wiring: stock `graphql` 5.2.4's `QueryManager`
+  passes `completer.complete` straight to `Stream.listen`, so once
+  `Stream.timeout` has settled the completer the late response completes it
+  again from inside the stream callback — where `fetchQuery`'s try/catch
+  cannot reach it. The dependency is now `graphql_plus: ^5.2.5` (arrrrny's
+  fork of 5.2.4), which guards `onData`/`onError` with `isCompleted`,
+  cancels the subscription once the completer settles, and surfaces an
+  empty response stream as `StateError('No element')` instead of hanging.
+  The fork renamed the library file, so `package:vendure/graphql.dart` is
+  the stable import for the transport types on vendure's public surface.
+  Regression: T8 in `test/graphql_datasource_suite_test.dart` (red on 5.2.4,
+  green on the fork).
+- **BREAKING (transport imports):** a consumer that imported
+  `package:graphql/client.dart` to name a client type (to build an injected
+  `GraphQLClient`, say) must import `package:vendure/graphql.dart` instead —
+  re-exported by `package:vendure/vendure.dart`, so the package's documented
+  entrypoint is enough. `graphql` is no longer a dependency of vendure, and a
+  same-named class from a consumer's own `graphql` resolution is a different
+  type from the one vendure's transport actually speaks.
 
 ## 7.3.6 - 2026-11-02
 

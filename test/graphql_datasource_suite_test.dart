@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:graphql/client.dart';
 import 'package:test/test.dart';
 import 'package:vendure/vendure.dart';
 
@@ -255,6 +254,56 @@ void main() {
 
       expect(surfaced, isA<VendureDataSourceException>());
       expect(unhandled, isEmpty);
+    });
+
+    test('T8: the transport DEPENDENCY is hardened — a late response after '
+        'the client\'s own request timeout does not double-complete the '
+        'query manager\'s completer (graphql_plus 5.2.5 hardening; stock '
+        'graphql 5.2.4 answered `Bad state: Future already completed` from '
+        'inside the stream callback, where the surrounding try/catch cannot '
+        'reach it — the root cause behind #4/#8)', () async {
+      final client = GraphQLClient(
+        link: Link.function((request, [forward]) async* {
+          // The quiet-stream shape: nothing until long after the client's
+          // own request timeout has already settled the completer.
+          await Future<void>.delayed(const Duration(milliseconds: 120));
+          yield Response(
+            data: const {
+              'activeOrder': {'id': 42},
+            },
+            response: const {},
+          );
+        }),
+        cache: GraphQLCache(),
+        queryRequestTimeout: const Duration(milliseconds: 20),
+      );
+
+      final unhandled = <Object>[];
+      // Nullable on purpose: a transport that *throws* leaves this unassigned
+      // instead of carrying an exception, and the explicit check below keeps
+      // that failure legible as the transport regression it is rather than
+      // surfacing as a LateInitializationError.
+      QueryResult<Object?>? result;
+      await runZonedGuarded(() async {
+        result = await client.query<Object?>(
+          QueryOptions<Object?>(
+            document: gql('query { activeOrder { id } }'),
+            fetchPolicy: FetchPolicy.noCache,
+          ),
+        );
+        // Let the late scripted response land after the timeout fired.
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      }, (error, stackTrace) => unhandled.add(error));
+
+      expect(
+        unhandled,
+        isEmpty,
+        reason:
+            'a late response after the request timeout must be dropped, '
+            'never completed into an already-settled completer',
+      );
+      expect(result, isNotNull);
+      expect(result!.hasException, isTrue);
     });
   });
 
