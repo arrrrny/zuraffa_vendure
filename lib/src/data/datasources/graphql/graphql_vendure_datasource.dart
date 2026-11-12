@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:graphql/client.dart';
+import 'package:graphql_plus/graphql_plus.dart';
 import 'package:http/http.dart' as http;
 import 'package:meta/meta.dart';
 
@@ -141,17 +141,20 @@ class GraphQLVendureDataSource implements VendureDataSource {
     link: _buildLink(),
     cache: GraphQLCache(),
     // Explicit null, ALWAYS — even when the context carries a timeout.
-    // graphql's queryRequestTimeout arms a `Stream.timeout` on the
-    // response stream (query_manager.dart in 5.2.4 listens to it with an
-    // unguarded `completer.complete`): when the stream goes quiet past
-    // the timeout, the synthetic TimeoutException fires AND the late
-    // real response then double-completes that completer — the
-    // consumer-side `Bad state: Future already completed` storm (issue
-    // #8, live on raptorr/zik_zak 7.3.8; zik_zak issue 265 deliberately
-    // avoids this wiring). `null` here keeps `Stream.timeout` disarmed;
-    // the per-operation budget is enforced safely in [_withinBudget]
-    // via `Future.timeout` (the timer cancels on completion and a late
-    // response is dropped silently).
+    // A non-null queryRequestTimeout arms a `Stream.timeout` on the
+    // response stream: when the stream goes quiet past the timeout, the
+    // synthetic TimeoutException fires and the late real response can
+    // still arrive. Stock `graphql` 5.2.4 completed that already-settled
+    // completer a second time from inside the stream callback — outside
+    // the reach of fetchQuery's try/catch, the consumer-side `Bad state:
+    // Future already completed` storm (issue #8, live on raptorr/zik_zak
+    // 7.3.8). The hardened `graphql_plus` fork (issue #13) guards
+    // `onData`/`onError` with `isCompleted` and cancels the subscription
+    // once the completer settles, so the late response is dropped; `null`
+    // stays anyway because the per-operation budget is enforced safely in
+    // [_withinBudget] via `Future.timeout` (the timer cancels on completion
+    // and a late response is dropped silently), which is the contract
+    // `VendureContext.timeout` documents.
     queryRequestTimeout: null,
     defaultPolicies: DefaultPolicies(
       query: Policies(
