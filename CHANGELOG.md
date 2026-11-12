@@ -61,6 +61,13 @@ completed`):
   the stable import for the transport types on vendure's public surface.
   Regression: T8 in `test/graphql_datasource_suite_test.dart` (red on 5.2.4,
   green on the fork).
+- **BREAKING (transport imports):** a consumer that imported
+  `package:graphql/client.dart` to name a client type (to build an injected
+  `GraphQLClient`, say) must import `package:vendure/graphql.dart` instead —
+  re-exported by `package:vendure/vendure.dart`, so the package's documented
+  entrypoint is enough. `graphql` is no longer a dependency of vendure, and a
+  same-named class from a consumer's own `graphql` resolution is a different
+  type from the one vendure's transport actually speaks.
 
 ## 7.3.6 - 2026-11-02
 

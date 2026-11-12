@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:graphql_plus/graphql_plus.dart';
 import 'package:test/test.dart';
 import 'package:vendure/vendure.dart';
 
@@ -280,7 +279,11 @@ void main() {
       );
 
       final unhandled = <Object>[];
-      late final QueryResult<Object?> result;
+      // Nullable on purpose: a transport that *throws* leaves this unassigned
+      // instead of carrying an exception, and the explicit check below keeps
+      // that failure legible as the transport regression it is rather than
+      // surfacing as a LateInitializationError.
+      QueryResult<Object?>? result;
       await runZonedGuarded(() async {
         result = await client.query<Object?>(
           QueryOptions<Object?>(
@@ -299,7 +302,8 @@ void main() {
             'a late response after the request timeout must be dropped, '
             'never completed into an already-settled completer',
       );
-      expect(result.hasException, isTrue);
+      expect(result, isNotNull);
+      expect(result!.hasException, isTrue);
     });
   });
 

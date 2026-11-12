@@ -14,6 +14,7 @@
 /// ```
 library;
 
+export 'graphql.dart';
 export 'src/data/datasources/graphql/graphql_vendure_datasource.dart';
 export 'src/data/datasources/in_memory/in_memory_vendure_datasource.dart';
 export 'src/domain/datasources/vendure_datasource.dart';
