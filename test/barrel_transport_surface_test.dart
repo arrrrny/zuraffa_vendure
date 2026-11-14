@@ -26,10 +26,10 @@ void main() {
       // is the only place a consumer injects a transport client, so its type
       // is the contract the shim exists to stabilise.
       final GraphQLVendureDataSource Function(
-        VendureContext,
-        {
+        VendureContext, {
         GraphQLClient? innerClient,
-      }) ctor = GraphQLVendureDataSource.new;
+      })
+      ctor = GraphQLVendureDataSource.new;
       expect(ctor, isNotNull);
     });
   });
