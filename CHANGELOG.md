@@ -72,6 +72,10 @@ completed`):
   entrypoint is enough. `graphql` is no longer a dependency of vendure, and a
   same-named class from a consumer's own `graphql` resolution is a different
   type from the one vendure's transport actually speaks.
+- Barrel reachability is now pinned: `test/barrel_transport_surface_test.dart`
+  imports only `package:vendure/vendure.dart` and names `GraphQLClient`, so
+  dropping `export 'graphql.dart';` from the barrel fails the suite at compile
+  time instead of only in a consumer's build (arrrrny/zuraffa_vendure#15).
 
 ## 7.3.6 - 2026-11-02
 
