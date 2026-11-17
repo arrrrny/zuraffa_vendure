@@ -19,12 +19,23 @@ abstract class VendureDataSource {
   /// [fromJson] is optional: when omitted the extracted payload is returned
   /// as-is (the raw escape hatch the custom operations ride — T may be a
   /// scalar, a Map, or a List).
+  ///
+  /// [expectedDataType] is NULLABLE, and null is the custom operations'
+  /// default (zuraffa_vendure#17): the GraphQL client has already unwrapped
+  /// the top-level `data` envelope before the SDK sees a result, so a fixed
+  /// `'data'` default names a key that cannot exist in any response — the
+  /// adapter looked for a `data` key INSIDE the operation's own field map,
+  /// found none, and threw on responses the backend had accepted. Null means
+  /// "the document's own root field(s)": the adapter returns the single root
+  /// field when the envelope selects exactly one, and the whole envelope
+  /// otherwise. An explicit name is still the right call for a document with
+  /// several root fields.
   Future<T> query<T>(
     String document, {
     required Map<String, dynamic> variables,
     required Map<String, String> headers,
     T Function(Map<String, dynamic> json)? fromJson,
-    required String expectedDataType,
+    required String? expectedDataType,
   });
 
   /// Executes a GraphQL mutation document — same envelope and error path
@@ -36,7 +47,7 @@ abstract class VendureDataSource {
     required Map<String, dynamic> variables,
     required Map<String, String> headers,
     T Function(Map<String, dynamic> json)? fromJson,
-    required String expectedDataType,
+    required String? expectedDataType,
   });
 
   /// Executes a query whose expected data type is a LIST (the Vendure list
@@ -50,7 +61,7 @@ abstract class VendureDataSource {
     required Map<String, dynamic> variables,
     required Map<String, String> headers,
     T Function(Map<String, dynamic> json)? fromJson,
-    required String expectedDataType,
+    required String? expectedDataType,
   });
 
   /// Executes a mutation and returns the decoded data TOGETHER with the
@@ -61,7 +72,7 @@ abstract class VendureDataSource {
     required Map<String, dynamic> variables,
     required Map<String, String> headers,
     required T Function(Map<String, dynamic> json) fromJson,
-    required String expectedDataType,
+    required String? expectedDataType,
   });
 
   /// Subscribes to a GraphQL subscription document — a stream of decoded
@@ -72,7 +83,7 @@ abstract class VendureDataSource {
     required Map<String, dynamic> variables,
     required Map<String, String> headers,
     required T Function(Map<String, dynamic> json) fromJson,
-    required String expectedDataType,
+    required String? expectedDataType,
   });
 }
 
@@ -155,7 +166,7 @@ abstract class VendureRawDataSource implements VendureDataSource {
     String document, {
     required Map<String, dynamic> variables,
     required Map<String, String> headers,
-    required String expectedDataType,
+    required String? expectedDataType,
     required bool isMutation,
   });
 }

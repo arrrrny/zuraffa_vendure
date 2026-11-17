@@ -80,6 +80,20 @@ completed`):
   imports only `package:vendure/vendure.dart` and names `GraphQLClient`, so
   dropping `export 'graphql.dart';` from the barrel fails the suite at compile
   time instead of only in a consumer's build (arrrrny/zuraffa_vendure#15).
+- **`CustomOperations`' `expectedDataType` no longer defaults to `'data'`.**
+  That default was a guaranteed-throw: the GraphQL client unwraps the
+  top-level `data` envelope before the SDK sees a `QueryResult`, so
+  `_handleErrors` looked for a `data` key INSIDE the operation's own field
+  map, found none, and threw `No data returned for expected type: data` — on
+  responses the backend had accepted (arrrrny/zuraffa_vendure#17; live as
+  zik_zak#877 and zik_zak#897, where four listing posts false-failed since
+  2026-11-09). The default is now `null`: the adapter returns the document's
+  single root field (`__typename` excluded — `gql()` injects it into every
+  selection set), or the whole envelope for a multi-field document. An
+  explicit root-field name still works exactly as before, and one that the
+  response does not carry now reports the keys it DID return
+  (`… (envelope keys: [postListing])`) instead of a bare name. Regression:
+  D1–D8 in `test/custom_operations_default_expected_data_type_suite_test.dart`.
 
 ## 7.3.6 - 2026-11-02
 

@@ -16,7 +16,7 @@ class VendureRequestRecord {
   final Map<String, dynamic> variables;
   final Map<String, String> headers;
   final bool isMutation;
-  final String expectedDataType;
+  final String? expectedDataType;
 }
 
 /// The pure-Dart [VendureDataSource] — the test/dev stand-in for the
@@ -36,7 +36,13 @@ class InMemoryVendureDataSource implements VendureDataSource {
   /// list operations, a scalar for raw custom queries. A miss resolves to
   /// an empty map — the shape a real endpoint returns for an operation
   /// with no data.
-  final Map<String, dynamic> script;
+  ///
+  /// The key is NULLABLE: `script[null]` holds the payload a caller gets
+  /// when it omits `expectedDataType` (the tolerant default,
+  /// zuraffa_vendure#17). The double has no envelope to unwrap, so the
+  /// script value IS the extracted payload and no root-field heuristic
+  /// applies here.
+  final Map<String?, dynamic> script;
 
   /// When non-null, every operation throws this instead of returning the
   /// scripted payload (the failure-path test seam).
@@ -53,7 +59,7 @@ class InMemoryVendureDataSource implements VendureDataSource {
     required Map<String, dynamic> variables,
     required Map<String, String> headers,
     T Function(Map<String, dynamic> json)? fromJson,
-    required String expectedDataType,
+    required String? expectedDataType,
   }) async {
     return _execute<T>(
       document,
@@ -71,7 +77,7 @@ class InMemoryVendureDataSource implements VendureDataSource {
     required Map<String, dynamic> variables,
     required Map<String, String> headers,
     T Function(Map<String, dynamic> json)? fromJson,
-    required String expectedDataType,
+    required String? expectedDataType,
   }) async {
     return _execute<T>(
       document,
@@ -87,7 +93,7 @@ class InMemoryVendureDataSource implements VendureDataSource {
     String document,
     Map<String, dynamic> variables,
     Map<String, String> headers,
-    String expectedDataType, {
+    String? expectedDataType, {
     required bool isMutation,
     T Function(Map<String, dynamic> json)? fromJson,
   }) {
@@ -113,7 +119,8 @@ class InMemoryVendureDataSource implements VendureDataSource {
     }
     if (payload is! Map<String, dynamic>) {
       throw VendureDataSourceException(
-        'Expected a JSON object for $expectedDataType, '
+        'Expected a JSON object for '
+        '${_describeExpectedType(expectedDataType)}, '
         'got ${payload.runtimeType}',
       );
     }
@@ -134,7 +141,7 @@ class InMemoryVendureDataSource implements VendureDataSource {
     required Map<String, dynamic> variables,
     required Map<String, String> headers,
     T Function(Map<String, dynamic> json)? fromJson,
-    required String expectedDataType,
+    required String? expectedDataType,
   }) async {
     requests.add(
       VendureRequestRecord(
@@ -157,7 +164,9 @@ class InMemoryVendureDataSource implements VendureDataSource {
     // (the source SDK: `if (data is! List) throw; data.map(fromJson)`).
     if (payload is! List<dynamic>) {
       throw VendureDataSourceException(
-        'Expected a JSON list for $expectedDataType, got ${payload.runtimeType}',
+        'Expected a JSON list for '
+        '${_describeExpectedType(expectedDataType)}, '
+        'got ${payload.runtimeType}',
       );
     }
     final decode = fromJson;
@@ -178,7 +187,7 @@ class InMemoryVendureDataSource implements VendureDataSource {
     required Map<String, dynamic> variables,
     required Map<String, String> headers,
     required T Function(Map<String, dynamic> json) fromJson,
-    required String expectedDataType,
+    required String? expectedDataType,
   }) async {
     requests.add(
       VendureRequestRecord(
@@ -203,7 +212,8 @@ class InMemoryVendureDataSource implements VendureDataSource {
     }
     if (payload is! Map<String, dynamic>) {
       throw VendureDataSourceException(
-        'Expected a JSON object for $expectedDataType, '
+        'Expected a JSON object for '
+        '${_describeExpectedType(expectedDataType)}, '
         'got ${payload.runtimeType}',
       );
     }
@@ -216,6 +226,12 @@ class InMemoryVendureDataSource implements VendureDataSource {
       Map<String, String>.of(responseHeaders),
     );
   }
+
+  /// How a failure message names the expected data type — null (the
+  /// tolerant default, zuraffa_vendure#17) reads as what it is, not as a
+  /// type called "null".
+  static String _describeExpectedType(String? expectedDataType) =>
+      expectedDataType ?? 'the whole envelope';
 
   /// The headers every [mutateWithHeaders] response carries — the scripted
   /// stand-in for the HTTP response headers (the auth token header). Tests
@@ -233,7 +249,7 @@ class InMemoryVendureDataSource implements VendureDataSource {
     required Map<String, dynamic> variables,
     required Map<String, String> headers,
     required T Function(Map<String, dynamic> json) fromJson,
-    required String expectedDataType,
+    required String? expectedDataType,
   }) async* {
     requests.add(
       VendureRequestRecord(

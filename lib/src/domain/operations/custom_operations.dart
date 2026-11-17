@@ -66,6 +66,14 @@ class CustomOperations {
   /// The underlying port, for advanced callers.
   VendureDataSource get dataSource => _dataSource;
 
+  /// Executes a raw mutation document.
+  ///
+  /// [expectedDataType] is optional and defaults to the document's own root
+  /// field (zuraffa_vendure#17): the client has already unwrapped the
+  /// top-level `data` envelope, so the old `'data'` default named a key that
+  /// cannot exist and every caller who omitted the parameter threw on a
+  /// SUCCESSFUL response. Pass the root field name explicitly for a document
+  /// that selects more than one.
   Future<T> mutate<T>(
     String mutation,
     Map<String, dynamic> variables, {
@@ -78,10 +86,12 @@ class CustomOperations {
       variables: _normalize(variables, convertEnums),
       headers: const {},
       fromJson: fromJson,
-      expectedDataType: expectedDataType ?? 'data',
+      expectedDataType: expectedDataType,
     );
   }
 
+  /// Executes a raw query document — [expectedDataType] defaults to the
+  /// document's root field, exactly as [mutate] documents (zuraffa_vendure#17).
   Future<T> query<T>(
     String query,
     Map<String, dynamic> variables, {
@@ -94,7 +104,7 @@ class CustomOperations {
       variables: _normalize(variables, convertEnums),
       headers: const {},
       fromJson: fromJson,
-      expectedDataType: expectedDataType ?? 'data',
+      expectedDataType: expectedDataType,
     );
   }
 
@@ -110,7 +120,7 @@ class CustomOperations {
       variables: _normalize(variables, convertEnums),
       headers: const {},
       fromJson: fromJson,
-      expectedDataType: expectedDataType ?? 'data',
+      expectedDataType: expectedDataType,
     );
   }
 
@@ -128,7 +138,7 @@ class CustomOperations {
       variables: _normalize(variables, convertEnums),
       headers: const {},
       fromJson: fromJson,
-      expectedDataType: expectedDataType ?? 'data',
+      expectedDataType: expectedDataType,
     );
   }
 
@@ -146,7 +156,7 @@ class CustomOperations {
       query,
       variables: _withOptions(const {}, options),
       headers: const {},
-      expectedDataType: expectedDataType ?? 'data',
+      expectedDataType: expectedDataType,
     );
     return _paginate<T>(_normalizeEnvelope(data, convertEnums), fromJson);
   }
@@ -163,7 +173,7 @@ class CustomOperations {
       mutation,
       variables: _normalize(_withOptions(variables, options), convertEnums),
       headers: const {},
-      expectedDataType: expectedDataType ?? 'data',
+      expectedDataType: expectedDataType,
     );
     return _paginate<T>(_normalizeEnvelope(data, convertEnums), fromJson);
   }
