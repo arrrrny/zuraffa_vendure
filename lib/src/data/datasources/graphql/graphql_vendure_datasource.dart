@@ -220,7 +220,7 @@ class GraphQLVendureDataSource implements VendureDataSource {
     required Map<String, dynamic> variables,
     required Map<String, String> headers,
     T Function(Map<String, dynamic> json)? fromJson,
-    required String expectedDataType,
+    required String? expectedDataType,
   }) {
     return _execute<T>(
       document,
@@ -238,7 +238,7 @@ class GraphQLVendureDataSource implements VendureDataSource {
     required Map<String, dynamic> variables,
     required Map<String, String> headers,
     T Function(Map<String, dynamic> json)? fromJson,
-    required String expectedDataType,
+    required String? expectedDataType,
   }) {
     return _execute<T>(
       document,
@@ -256,7 +256,7 @@ class GraphQLVendureDataSource implements VendureDataSource {
     required Map<String, dynamic> variables,
     required Map<String, String> headers,
     T Function(Map<String, dynamic> json)? fromJson,
-    required String expectedDataType,
+    required String? expectedDataType,
   }) async {
     final data = await _executeRaw(
       document,
@@ -267,7 +267,8 @@ class GraphQLVendureDataSource implements VendureDataSource {
     );
     if (data is! List) {
       throw VendureDataSourceException(
-        'Expected a JSON list for $expectedDataType, got ${data.runtimeType}',
+        'Expected a JSON list for '
+        '${_describeExpectedType(expectedDataType)}, got ${data.runtimeType}',
       );
     }
     final decode = fromJson;
@@ -288,7 +289,7 @@ class GraphQLVendureDataSource implements VendureDataSource {
     required Map<String, dynamic> variables,
     required Map<String, String> headers,
     required T Function(Map<String, dynamic> json) fromJson,
-    required String expectedDataType,
+    required String? expectedDataType,
   }) async {
     // The auth seam needs the HTTP response headers (the Vendure session
     // token rides the vendure-auth-token header), so this path keeps the
@@ -318,7 +319,9 @@ class GraphQLVendureDataSource implements VendureDataSource {
         'No data returned from GraphQL operation',
       );
     }
-    final extracted = _extractExpectedData(envelope, expectedDataType);
+    final extracted = expectedDataType == null
+        ? _extractDefaultData(envelope)
+        : _extractExpectedData(envelope, expectedDataType);
     if (extracted is Map && extracted['__typename'] == 'ErrorResult') {
       throw VendureDataSourceException(
         extracted['message']?.toString() ?? 'Vendure ErrorResult',
@@ -336,7 +339,9 @@ class GraphQLVendureDataSource implements VendureDataSource {
     }
     if (extracted is! Map<String, dynamic>) {
       throw VendureDataSourceException(
-        'Expected a JSON object for $expectedDataType, got ${extracted.runtimeType}',
+        'Expected a JSON object for '
+        '${_describeExpectedType(expectedDataType)}, got '
+        '${extracted.runtimeType}',
       );
     }
     final normalized = VendureUtils.normalizeGraphQLData(
@@ -355,7 +360,7 @@ class GraphQLVendureDataSource implements VendureDataSource {
     required Map<String, dynamic> variables,
     required Map<String, String> headers,
     required T Function(Map<String, dynamic> json) fromJson,
-    required String expectedDataType,
+    required String? expectedDataType,
   }) {
     // The subscription transport: a WebSocket client over the context's
     // endpoint (http(s) → ws(s) scheme swap), the auth vocabulary riding
@@ -379,7 +384,8 @@ class GraphQLVendureDataSource implements VendureDataSource {
       final data = _handleErrors(result, expectedDataType);
       if (data is! Map<String, dynamic>) {
         throw VendureDataSourceException(
-          'Subscription data must be a map for $expectedDataType, got ${data.runtimeType}',
+          'Subscription data must be a map for '
+          '${_describeExpectedType(expectedDataType)}, got ${data.runtimeType}',
         );
       }
       return fromJson(data);
@@ -443,7 +449,7 @@ class GraphQLVendureDataSource implements VendureDataSource {
     required Map<String, dynamic> variables,
     required Map<String, String> headers,
     T Function(Map<String, dynamic> json)? fromJson,
-    required String expectedDataType,
+    required String? expectedDataType,
     required bool isMutation,
   }) async {
     final data = await _executeRaw(
@@ -460,7 +466,8 @@ class GraphQLVendureDataSource implements VendureDataSource {
     }
     if (data is! Map<String, dynamic>) {
       throw VendureDataSourceException(
-        'Expected a JSON object for $expectedDataType, got ${data.runtimeType}',
+        'Expected a JSON object for '
+        '${_describeExpectedType(expectedDataType)}, got ${data.runtimeType}',
       );
     }
     // Response normalization: always convertEnums=false because entity
@@ -482,7 +489,7 @@ class GraphQLVendureDataSource implements VendureDataSource {
     String document, {
     required Map<String, dynamic> variables,
     required Map<String, String> headers,
-    required String expectedDataType,
+    required String? expectedDataType,
     required bool isMutation,
   }) async {
     final client = _graphqlClient;
@@ -549,7 +556,12 @@ class GraphQLVendureDataSource implements VendureDataSource {
   /// Ported from the source SDK: validate the [QueryResult] and extract
   /// the expected data key. Every failure shape becomes a
   /// [VendureDataSourceException] — the port's one error path.
-  dynamic _handleErrors(QueryResult<Object?> result, String expectedDataType) {
+  ///
+  /// A null [expectedDataType] is the tolerant default (zuraffa_vendure#17):
+  /// the envelope is already unwrapped, so there is no `data` key to look
+  /// for — [_extractDefaultData] answers with the operation's single root
+  /// field, or the whole envelope for a multi-field document.
+  dynamic _handleErrors(QueryResult<Object?> result, String? expectedDataType) {
     if (result.hasException) {
       throw _failureException(result);
     }
@@ -561,10 +573,18 @@ class GraphQLVendureDataSource implements VendureDataSource {
       );
     }
 
-    final extracted = _extractExpectedData(data, expectedDataType);
-    if (extracted == null) {
+    final extracted = expectedDataType == null
+        ? _extractDefaultData(data)
+        : _extractExpectedData(data, expectedDataType);
+    // A present root field whose value is null is an answer, not a
+    // failure — only an ABSENT name is "no data" (a guest session's
+    // `activeOrder: null` is the ordinary Vendure reply, and the
+    // caller's decode is what decides what a null payload means).
+    if (extracted == null && !_defaultAnsweredNull(data, expectedDataType)) {
       throw VendureDataSourceException(
-        'No data returned for expected type: $expectedDataType',
+        'No data returned for expected type: '
+        '${_describeExpectedType(expectedDataType)}'
+        '${_envelopeKeysSuffix(data)}',
       );
     }
 
@@ -670,4 +690,55 @@ class GraphQLVendureDataSource implements VendureDataSource {
     }
     return current;
   }
+
+  /// Whether the tolerant default found a root field the server ANSWERED
+  /// with JSON `null` — an answer, not a missing key. `gql()` injects
+  /// `__typename` into every selection set, so any other key is a root
+  /// field the document selected, and a null value there is the server's
+  /// reply (a guest session's `activeOrder`). Only an ABSENT name is
+  /// "no data"; an explicit [expectedDataType] that resolves to null keeps
+  /// the old failure, because there the caller named a key and did not get
+  /// it.
+  static bool _defaultAnsweredNull(dynamic data, String? expectedDataType) =>
+      expectedDataType == null &&
+      data is Map &&
+      data.keys.any((key) => key != '__typename');
+
+  /// The tolerant default's payload (zuraffa_vendure#17): the operation's
+  /// single root field when the envelope selects exactly one, the whole
+  /// envelope otherwise.
+  ///
+  /// `gql()` injects `__typename` into every selection set, so the envelope
+  /// always carries that key next to the selected root field(s) — counting
+  /// it would make the single-root-field case unreachable for every real
+  /// response. A multi-field document has no obvious payload, so the
+  /// envelope is handed over unchanged rather than guessed at (the
+  /// single-key heuristic is exactly what is wrong there — consumers
+  /// passing explicit names keep doing so).
+  static dynamic _extractDefaultData(dynamic data) {
+    if (data is! Map) {
+      return data;
+    }
+    final rootFields = data.keys.where((key) => key != '__typename').toList();
+    if (rootFields.length == 1) {
+      return data[rootFields.single];
+    }
+    return data;
+  }
+
+  /// The envelope's own keys, for the failure message an explicit
+  /// [expectedDataType] that the response does not carry produces — the
+  /// one-glance diagnosis the issue asks for (a stale or misspelled name
+  /// used to surface only as `No data returned for expected type: x`).
+  static String _envelopeKeysSuffix(dynamic data) {
+    if (data is! Map || data.isEmpty) {
+      return '';
+    }
+    return ' (envelope keys: [${data.keys.join(', ')}])';
+  }
+
+  /// How a failure message names the expected data type — null (the
+  /// tolerant default) reads as what it is, not as a type called "null".
+  static String _describeExpectedType(String? expectedDataType) =>
+      expectedDataType ?? 'the whole envelope';
 }
