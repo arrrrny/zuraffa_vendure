@@ -192,7 +192,13 @@ class CustomOperations {
       variables: _normalize(variables, convertEnums),
       headers: const {},
       fromJson: _identityAsMap,
-      expectedDataType: 'data',
+      // null, not the retired `'data'`: that name cannot be in any
+      // envelope, so the old value only reached the tolerated "absent
+      // key" path by accident of the extraction order. The tolerant
+      // default is the documented way to say the body is irrelevant on
+      // this seam — the session token rides the response HEADER, and only
+      // `response.headers` is read below.
+      expectedDataType: null,
     );
     final captured = <String, String>{};
     for (final h in headers) {
@@ -268,6 +274,19 @@ class CustomOperations {
     if (data is! Map<String, dynamic>) {
       throw VendureDataSourceException(
         'Expected a JSON object for the paginated envelope, got ${data.runtimeType}',
+      );
+    }
+    // A multi-field document's WHOLE envelope reaches here when the caller
+    // omitted expectedDataType (D6 pins that contract for query/mutate).
+    // Without either key there is no page to report: the fallbacks below
+    // used to answer `items: [], totalItems: 0` — a page that exists
+    // reported as empty, with no error and no log, which is the hardest
+    // kind of wrong to notice downstream.
+    if (!data.containsKey('items') && !data.containsKey('totalItems')) {
+      throw VendureDataSourceException(
+        'Paginated envelope has no items/totalItems '
+        '(envelope keys: [${data.keys.join(', ')}]); pass expectedDataType '
+        'for a multi-field document',
       );
     }
     final items =

@@ -384,7 +384,8 @@ class GraphQLVendureDataSource implements VendureDataSource {
       final data = _handleErrors(result, expectedDataType);
       if (data is! Map<String, dynamic>) {
         throw VendureDataSourceException(
-          'Subscription data must be a map for $expectedDataType, got ${data.runtimeType}',
+          'Subscription data must be a map for '
+          '${_describeExpectedType(expectedDataType)}, got ${data.runtimeType}',
         );
       }
       return fromJson(data);
@@ -575,9 +576,14 @@ class GraphQLVendureDataSource implements VendureDataSource {
     final extracted = expectedDataType == null
         ? _extractDefaultData(data)
         : _extractExpectedData(data, expectedDataType);
-    if (extracted == null) {
+    // A present root field whose value is null is an answer, not a
+    // failure — only an ABSENT name is "no data" (a guest session's
+    // `activeOrder: null` is the ordinary Vendure reply, and the
+    // caller's decode is what decides what a null payload means).
+    if (extracted == null && !_defaultAnsweredNull(data, expectedDataType)) {
       throw VendureDataSourceException(
-        'No data returned for expected type: $expectedDataType'
+        'No data returned for expected type: '
+        '${_describeExpectedType(expectedDataType)}'
         '${_envelopeKeysSuffix(data)}',
       );
     }
@@ -684,6 +690,19 @@ class GraphQLVendureDataSource implements VendureDataSource {
     }
     return current;
   }
+
+  /// Whether the tolerant default found a root field the server ANSWERED
+  /// with JSON `null` — an answer, not a missing key. `gql()` injects
+  /// `__typename` into every selection set, so any other key is a root
+  /// field the document selected, and a null value there is the server's
+  /// reply (a guest session's `activeOrder`). Only an ABSENT name is
+  /// "no data"; an explicit [expectedDataType] that resolves to null keeps
+  /// the old failure, because there the caller named a key and did not get
+  /// it.
+  static bool _defaultAnsweredNull(dynamic data, String? expectedDataType) =>
+      expectedDataType == null &&
+      data is Map &&
+      data.keys.any((key) => key != '__typename');
 
   /// The tolerant default's payload (zuraffa_vendure#17): the operation's
   /// single root field when the envelope selects exactly one, the whole

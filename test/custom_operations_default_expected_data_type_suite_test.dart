@@ -18,6 +18,12 @@ import 'package:vendure/vendure.dart';
 /// than one root field. Callers who pass an explicit name — the convention
 /// zik_zak#899 keeps — are unaffected.
 ///
+/// Two shapes the default must not mistake for a failure or an empty page:
+/// a root field the server answered with `null` (D9 — the ordinary
+/// guest-session `activeOrder`), and a multi-field envelope reaching a
+/// paginated operation (D10 — no `items`/`totalItems` to report, so it
+/// fails loudly instead of returning a page that exists as empty).
+///
 /// The transport is a scripted [Link.function]: the real
 /// [GraphQLVendureDataSource] over the real `graphql_plus` client, no
 /// server and no network, so these tests pin the SDK's own response
@@ -218,6 +224,54 @@ void main() {
       expect(message, contains('No data returned for expected type: data'));
       expect(message, contains('envelope keys'));
       expect(message, contains('postListing'));
+    });
+
+    test('D9: a single root field present with a null value is an answer, '
+        'not a failure (a guest session\'s activeOrder)', () async {
+      final ops = _opsFor({
+        'data': {'__typename': 'Query', 'activeOrder': null},
+      });
+
+      // The raw escape hatch returns null — the server answered, the
+      // payload is simply empty. Throwing here is #17's failure mode one
+      // field-name deeper: the response was a healthy 200.
+      final result = await ops.query<dynamic>(
+        'query { activeOrder { id } }',
+        const {},
+      );
+
+      expect(result, isNull);
+    });
+
+    test('D10: a paginated multi-field envelope fails loudly instead of '
+        'reporting a real page as empty', () async {
+      final ops = _opsFor({
+        'data': {
+          '__typename': 'Query',
+          'getDealList': {
+            'items': [
+              {'__typename': 'Deal', 'id': '1'},
+            ],
+            'totalItems': 5,
+          },
+          'other': 1,
+        },
+      });
+
+      Object? surfaced;
+      try {
+        await ops.queryListPaginated<Map<String, dynamic>>(
+          'query { getDealList { items { id } totalItems } other }',
+          fromJson: (json) => json,
+        );
+      } catch (e) {
+        surfaced = e;
+      }
+
+      expect(surfaced, isA<VendureDataSourceException>());
+      final message = (surfaced! as VendureDataSourceException).message;
+      expect(message, contains('no items/totalItems'));
+      expect(message, contains('getDealList'));
     });
   });
 }

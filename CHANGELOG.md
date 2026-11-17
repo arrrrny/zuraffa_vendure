@@ -80,7 +80,8 @@ completed`):
   imports only `package:vendure/vendure.dart` and names `GraphQLClient`, so
   dropping `export 'graphql.dart';` from the barrel fails the suite at compile
   time instead of only in a consumer's build (arrrrny/zuraffa_vendure#15).
-- **`CustomOperations`' `expectedDataType` no longer defaults to `'data'`.**
+- **BREAKING (datasource port):** `CustomOperations`' `expectedDataType` no
+  longer defaults to `'data'`.
   That default was a guaranteed-throw: the GraphQL client unwraps the
   top-level `data` envelope before the SDK sees a `QueryResult`, so
   `_handleErrors` looked for a `data` key INSIDE the operation's own field
@@ -89,11 +90,24 @@ completed`):
   zik_zak#877 and zik_zak#897, where four listing posts false-failed since
   2026-11-09). The default is now `null`: the adapter returns the document's
   single root field (`__typename` excluded — `gql()` injects it into every
-  selection set), or the whole envelope for a multi-field document. An
-  explicit root-field name still works exactly as before, and one that the
-  response does not carry now reports the keys it DID return
-  (`… (envelope keys: [postListing])`) instead of a bare name. Regression:
-  D1–D8 in `test/custom_operations_default_expected_data_type_suite_test.dart`.
+  selection set), or the whole envelope for a multi-field document. A root
+  field the server answered with `null` (a guest session's `activeOrder`) is
+  that answer, not a failure; only an absent name still throws, and it reports
+  the keys the response DID return (`… (envelope keys: [postListing])`)
+  instead of a bare name. `queryListPaginated` / `mutateListPaginated` now
+  fail loudly when a multi-field envelope reaches them with neither
+  `items` nor `totalItems`, where they used to report a real page as
+  `items: [], totalItems: 0`.
+  Widening the port is a source break for anyone who implements
+  `VendureDataSource` outside this package: `query`, `mutate`, `queryList`,
+  `mutateWithHeaders` and `subscribe` take `required String? expectedDataType`
+  (a `String`-typed override no longer compiles — `invalid_override`),
+  `VendureRequestRecord.expectedDataType` is nullable, and
+  `InMemoryVendureDataSource.script` is `Map<String?, dynamic>`. Those
+  implementers must widen their parameter types. The widened public port
+  takes a MINOR bump: 7.5.0 is released, so this lands as 7.6.0.
+  Regression: D1–D10 in
+  `test/custom_operations_default_expected_data_type_suite_test.dart`.
 
 ## 7.3.6 - 2026-11-02
 
