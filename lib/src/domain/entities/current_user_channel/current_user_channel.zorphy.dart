@@ -43,7 +43,7 @@ class CurrentUserChannel {
   ) {
     switch (field.name) {
       case 'code':
-        return copyWith(code: value as String);
+        return copyWith(code: value as String?);
       case 'id':
         return copyWith(id: value as String);
       case 'token':
@@ -77,7 +77,7 @@ class CurrentUserChannel {
                     : (_patchMap[CurrentUserChannel$.code] is Patch)
                     ? _patchMap[CurrentUserChannel$.code].applyTo(this.code)
                     : _patchMap[CurrentUserChannel$.code])
-                as String
+                as String?
           : this.code,
       id: _patchMap.containsKey(CurrentUserChannel$.id)
           ? ((_patchMap[CurrentUserChannel$.id] is Function)
@@ -143,11 +143,15 @@ class CurrentUserChannel {
 
 extension CurrentUserChannelPropertyHelpers on CurrentUserChannel {
   bool get hasCode {
-    return this.code?.isNotEmpty ?? false;
+    return this.code?.isNotEmpty == true;
   }
 
   bool get noCode {
     return this.code?.isEmpty ?? true;
+  }
+
+  String get codeRequired {
+    return this.code ?? (throw StateError('code is required but was null'));
   }
 
   bool get hasId {
@@ -199,14 +203,14 @@ class CurrentUserChannelPatch
 
 /// Field descriptors for [CurrentUserChannel] query construction
 abstract final class CurrentUserChannelFields {
-  static const code = Field<CurrentUserChannel, String>('code', _$code);
+  static const code = Field<CurrentUserChannel, String?>('code', _$code);
 
   static const id = Field<CurrentUserChannel, String>('id', _$id);
 
   static const token = Field<CurrentUserChannel, String>('token', _$token);
 
-  static String _$code(CurrentUserChannel e) {
-    return e.code ?? '';
+  static String? _$code(CurrentUserChannel e) {
+    return e.code;
   }
 
   static String _$id(CurrentUserChannel e) {

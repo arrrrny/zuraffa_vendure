@@ -18,7 +18,7 @@ CurrentUserChannel _$CurrentUserChannelFromJson(Map<String, dynamic> json) =>
 
 Map<String, dynamic> _$CurrentUserChannelToJson(CurrentUserChannel instance) =>
     <String, dynamic>{
-      'code': instance.code,
+      'code': ?instance.code,
       'id': instance.id,
       'token': instance.token,
     };
